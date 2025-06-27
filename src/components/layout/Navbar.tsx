@@ -39,13 +39,13 @@ export default function Navbar() {
                 href="/create-will"
                 className="border-transparent text-muted-foreground hover:border-primary hover:text-foreground inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors"
               >
-                Create Rules
+                Create Wills
               </Link>
               <Link
                 href="/my-wills"
                 className="border-transparent text-muted-foreground hover:border-primary hover:text-foreground inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors"
               >
-                My Rules
+                My Wills
               </Link>
               <Link
                 href="/claim-will"

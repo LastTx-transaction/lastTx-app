@@ -34,7 +34,7 @@ export default function Footer() {
                   href="/create-will"
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Create Rules
+                  Create Wills
                 </Link>
               </li>
               <li>
@@ -42,7 +42,7 @@ export default function Footer() {
                   href="/my-wills"
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  My Rules
+                  My Wills
                 </Link>
               </li>
               <li>
@@ -68,8 +68,7 @@ export default function Footer() {
                   rel="noopener noreferrer"
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center"
                 >
-                  <Github className="h-4 w-4 mr-2" />
-                  Repository
+                  Repository <Github className="h-4 w-4 mx-2" />
                   <ExternalLink className="h-3 w-3 ml-1" />
                 </a>
               </li>
@@ -95,35 +94,25 @@ export default function Footer() {
                 © 2025 Last Tx. All rights reserved.
               </p>
               <p className="text-xs">
-                Developed by{" "}
+                Developed by:{" "}
                 <Link
-                  href="https://github.com/developer1"
+                  href="https://github.com/m-azzam-azis"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-green-500 hover:text-green-700 transition-colors hover:underline font-bold"
+                  className="text-green-500 hover:text-green-600 transition-colors hover:underline font-bold px-2"
                 >
-                  Developer 1
+                  M Azzam
                 </Link>{" "}
                 &{" "}
                 <Link
                   href="https://github.com/developer2"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-green-500 hover:text-green-700 transition-colors hover:underline font-bold"
+                  className="text-green-500 hover:text-green-600 transition-colors hover:underline font-bold px-2"
                 >
-                  Developer 2
+                  Daffa Rafi
                 </Link>
               </p>
-            </div>
-            <div className="flex items-center space-x-4 mt-4 md:mt-0">
-              <a
-                href="https://github.com/your-repo/last-tx"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Github className="h-5 w-5" />
-              </a>
             </div>
           </div>
         </div>
