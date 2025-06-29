@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useCurrentFlowUser } from "@onflow/kit";
-import { Button } from "@/components/ui/button";
+import { useCurrentFlowUser } from '@onflow/kit';
+import { Button } from '@/components/ui/button';
 import {
   Shield,
   Users,
@@ -14,15 +14,16 @@ import {
   Leaf,
   Code,
   Server,
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Sparkles } from "lucide-react";
+} from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Sparkles } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion";
+} from '@/components/ui/accordion';
+import Link from 'next/link';
 
 export default function Home() {
   const { user, authenticate, unauthenticate } = useCurrentFlowUser();
@@ -50,13 +51,13 @@ export default function Home() {
                 Secure Your Digital Legacy with Smart Inheritance
               </p>
               <p className="text-lg md:text-xl mb-8 text-muted-foreground max-w-3xl mx-auto">
-                Create smart contracts that automatically{" "}
+                Create smart contracts that automatically{' '}
                 <span className="text-yellow-500 font-bold">
                   inherit your crypto assets
-                </span>{" "}
+                </span>{' '}
                 to beneficiaries if you don&apos;t interact with your wallet for
                 specified periods. You stay in control while ensuring your loved
-                ones are protected if anything happens. Powered by{" "}
+                ones are protected if anything happens. Powered by{' '}
                 <strong className="text-green-500 font-bold">
                   Flow blockchain security
                 </strong>
@@ -69,7 +70,7 @@ export default function Home() {
                 <div className="flex flex-col sm:flex-row gap-4 items-center">
                   <div className="bg-accent border border-border rounded-lg px-6 py-3">
                     <p className="text-accent-foreground font-medium">
-                      ✅ Connected:{" "}
+                      ✅ Connected:{' '}
                       <span className="font-mono text-sm">
                         {user.addr?.slice(0, 8)}...
                       </span>
@@ -78,10 +79,12 @@ export default function Home() {
                   <Button variant="outline" onClick={unauthenticate}>
                     Disconnect Wallet
                   </Button>
-                  <Button className="group">
-                    Create Your Will
-                    <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                  </Button>
+                  <Link href="/create-will">
+                    <Button className="group">
+                      Create Your Will
+                      <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </Button>
+                  </Link>
                 </div>
               ) : (
                 <Button onClick={authenticate} size="lg" className="group">
@@ -221,8 +224,8 @@ export default function Home() {
               </div>
               <p className="text-lg text-muted-foreground">
                 <strong className="text-primary">Last Tx</strong> ensures your
-                crypto doesn&apos;t join these statistics. Our inactivity-based{" "}
-                <strong className="text-primary">inheritance system</strong>{" "}
+                crypto doesn&apos;t join these statistics. Our inactivity-based{' '}
+                <strong className="text-primary">inheritance system</strong>{' '}
                 provides automatic protection while keeping you in complete
                 control.
               </p>
@@ -561,7 +564,15 @@ export default function Home() {
             and give yourself peace of mind
           </p>
 
-          {!user?.loggedIn && (
+          {user?.loggedIn ? (
+            <Link href="/create-will">
+              <Button variant="secondary" size="lg" className="group">
+                <FileText className="mr-2 h-5 w-5" />
+                Create Your Will Now
+                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </Button>
+            </Link>
+          ) : (
             <Button
               onClick={authenticate}
               variant="secondary"

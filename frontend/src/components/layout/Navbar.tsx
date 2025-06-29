@@ -1,9 +1,9 @@
-"use client";
-import { useState } from "react";
-import Link from "next/link";
-import { Menu, X, Wallet } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { useCurrentFlowUser } from "@onflow/kit";
+'use client';
+import { useState } from 'react';
+import Link from 'next/link';
+import { Menu, X, Wallet } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useCurrentFlowUser } from '@onflow/kit';
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -35,24 +35,28 @@ export default function Navbar() {
               >
                 Home
               </Link>
-              <Link
-                href="/create-will"
-                className="border-transparent text-muted-foreground hover:border-primary hover:text-foreground inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors"
-              >
-                Create Wills
-              </Link>
-              <Link
-                href="/my-wills"
-                className="border-transparent text-muted-foreground hover:border-primary hover:text-foreground inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors"
-              >
-                My Wills
-              </Link>
-              <Link
-                href="/claim-will"
-                className="border-transparent text-muted-foreground hover:border-primary hover:text-foreground inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors"
-              >
-                Notifications
-              </Link>
+              {user?.loggedIn && (
+                <>
+                  <Link
+                    href="/create-will"
+                    className="border-transparent text-muted-foreground hover:border-primary hover:text-foreground inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors"
+                  >
+                    Create Wills
+                  </Link>
+                  <Link
+                    href="/my-wills"
+                    className="border-transparent text-muted-foreground hover:border-primary hover:text-foreground inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors"
+                  >
+                    My Wills
+                  </Link>
+                  <Link
+                    href="/claim-will"
+                    className="border-transparent text-muted-foreground hover:border-primary hover:text-foreground inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors"
+                  >
+                    Notifications
+                  </Link>
+                </>
+              )}
             </div>
           </div>
           <div className="hidden sm:ml-6 sm:flex sm:items-center">
@@ -98,24 +102,28 @@ export default function Navbar() {
             >
               Home
             </Link>
-            <Link
-              href="/create-will"
-              className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-muted-foreground hover:bg-accent hover:border-primary hover:text-foreground"
-            >
-              Create Rules
-            </Link>
-            <Link
-              href="/my-wills"
-              className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-muted-foreground hover:bg-accent hover:border-primary hover:text-foreground"
-            >
-              My Rules
-            </Link>
-            <Link
-              href="/claim-will"
-              className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-muted-foreground hover:bg-accent hover:border-primary hover:text-foreground"
-            >
-              Notifications
-            </Link>
+            {user?.loggedIn && (
+              <>
+                <Link
+                  href="/create-will"
+                  className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-muted-foreground hover:bg-accent hover:border-primary hover:text-foreground"
+                >
+                  Create Rules
+                </Link>
+                <Link
+                  href="/my-wills"
+                  className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-muted-foreground hover:bg-accent hover:border-primary hover:text-foreground"
+                >
+                  My Rules
+                </Link>
+                <Link
+                  href="/claim-will"
+                  className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-muted-foreground hover:bg-accent hover:border-primary hover:text-foreground"
+                >
+                  Notifications
+                </Link>
+              </>
+            )}
             <div className="pl-3 pr-4 py-2">
               {user?.loggedIn ? (
                 <div className="space-y-2">
