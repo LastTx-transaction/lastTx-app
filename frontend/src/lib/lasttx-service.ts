@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { fcl } from './flow-config';
-import * as scripts from './cadence/scripts';
-import * as transactions from './cadence/transactions';
+import * as TRANSACTIONS from './cadence/transactions';
+import * as SCRIPTS from './cadence/scripts';
 
 export interface Beneficiary {
   address: string;
@@ -9,74 +9,36 @@ export interface Beneficiary {
   name?: string;
 }
 
-export interface LastTxDetails {
+export interface WillDetails {
   id: string;
   owner: string;
-  personalMessage?: string;
-  lastActivity: number;
-  inactivityDuration: number;
   beneficiaries: Beneficiary[];
-  balance: number;
+  inactivityDuration: number;
+  lastActivity: number;
+  personalMessage: string;
+  isClaimed: boolean;
   isExpired: boolean;
-  isActive: boolean;
   createdAt: number;
-  timeRemaining: number;
 }
 
 export class LastTxService {
-  // Check if account is set up for LastTx
-  static async isAccountSetup(address: string): Promise<boolean> {
-    try {
-      return await fcl.query({
-        cadence: scripts.GET_ACCOUNT_SETUP,
-        args: (arg: any, t: any) => [arg(address, t.Address)],
-      });
-    } catch (error) {
-      console.error('Error checking account setup:', error);
-      return false;
-    }
-  }
-
-  // Setup account for LastTx
-  static async setupAccount(): Promise<string> {
-    try {
-      const transactionId = await fcl.mutate({
-        cadence: transactions.SETUP_ACCOUNT,
-        proposer: fcl.currentUser,
-        payer: fcl.currentUser,
-        authorizations: [fcl.currentUser],
-        limit: 1000,
-      });
-
-      await fcl.tx(transactionId).onceSealed();
-      return transactionId;
-    } catch (error) {
-      console.error('Error setting up account:', error);
-      throw error;
-    }
-  }
-
-  // Create new LastTx
-  static async createLastTx(
+  // Create new inheritance will (single beneficiary)
+  static async createWill(
+    beneficiaryAddress: string,
+    percentage: number,
     inactivityDuration: number,
-    beneficiaries: Beneficiary[],
-    personalMessage?: string,
+    beneficiaryName: string = '',
+    personalMessage: string = '',
   ): Promise<string> {
     try {
-      const beneficiaryAddresses = beneficiaries.map((b) => b.address);
-      const beneficiaryPercentages = beneficiaries.map((b) =>
-        b.percentage.toFixed(2),
-      );
-      const beneficiaryNames = beneficiaries.map((b) => b.name ?? null);
-
       const transactionId = await fcl.mutate({
-        cadence: transactions.CREATE_LASTTX,
+        cadence: TRANSACTIONS.CREATE_WILL,
         args: (arg: any, t: any) => [
-          arg(inactivityDuration.toFixed(2), t.UFix64),
-          arg(beneficiaryAddresses, t.Array(t.Address)),
-          arg(beneficiaryPercentages, t.Array(t.UFix64)),
-          arg(beneficiaryNames, t.Array(t.Optional(t.String))),
-          arg(personalMessage ?? null, t.Optional(t.String)),
+          arg(beneficiaryAddress, t.Address),
+          arg(percentage.toFixed(8), t.UFix64),
+          arg(inactivityDuration.toFixed(8), t.UFix64),
+          arg(beneficiaryName, t.String),
+          arg(personalMessage, t.String),
         ],
         proposer: fcl.currentUser,
         payer: fcl.currentUser,
@@ -87,111 +49,97 @@ export class LastTxService {
       await fcl.tx(transactionId).onceSealed();
       return transactionId;
     } catch (error) {
-      console.error('Error creating LastTx:', error);
+      console.error('Error creating will:', error);
       throw error;
     }
   }
 
-  // Get LastTx IDs for an account
-  static async getLastTxIds(address: string): Promise<string[]> {
-    try {
-      const ids = await fcl.query({
-        cadence: scripts.GET_LASTTX_IDS,
-        args: (arg: any, t: any) => [arg(address, t.Address)],
-      });
-      return ids.map((id: any) => id.toString());
-    } catch (error) {
-      console.error('Error getting LastTx IDs:', error);
-      return [];
-    }
-  }
-
-  // Get LastTx details
-  static async getLastTxDetails(
-    address: string,
-    id: string,
-  ): Promise<LastTxDetails | null> {
-    try {
-      const details = await fcl.query({
-        cadence: scripts.GET_LASTTX_DETAILS,
-        args: (arg: any, t: any) => [
-          arg(address, t.Address),
-          arg(id, t.UInt64),
-        ],
-      });
-
-      if (!details) return null;
-
-      return {
-        id: details.id.toString(),
-        owner: details.owner,
-        personalMessage: details.personalMessage,
-        lastActivity: parseFloat(details.lastActivity),
-        inactivityDuration: parseFloat(details.inactivityDuration),
-        beneficiaries: details.beneficiaries.map((b: any) => ({
-          address: b.address,
-          percentage: parseFloat(b.percentage),
-          name: b.name,
-        })),
-        balance: parseFloat(details.balance),
-        isExpired: details.isExpired,
-        isActive: details.isActive,
-        createdAt: parseFloat(details.createdAt),
-        timeRemaining: parseFloat(details.timeRemaining),
-      };
-    } catch (error) {
-      console.error('Error getting LastTx details:', error);
-      return null;
-    }
-  }
-
-  // Get all LastTx for an account
-  static async getAllLastTx(
-    address: string,
-  ): Promise<Record<string, LastTxDetails>> {
-    try {
-      const allData = await fcl.query({
-        cadence: scripts.GET_ALL_LASTTX,
-        args: (arg: any, t: any) => [arg(address, t.Address)],
-      });
-
-      const result: Record<string, LastTxDetails> = {};
-
-      for (const [id, details] of Object.entries(
-        allData as Record<string, any>,
-      )) {
-        result[id] = {
-          id: details.id.toString(),
-          owner: details.owner,
-          personalMessage: details.personalMessage,
-          lastActivity: parseFloat(details.lastActivity),
-          inactivityDuration: parseFloat(details.inactivityDuration),
-          beneficiaries: details.beneficiaries.map((b: any) => ({
-            address: b.address,
-            percentage: parseFloat(b.percentage),
-            name: b.name,
-          })),
-          balance: parseFloat(details.balance),
-          isExpired: details.isExpired,
-          isActive: details.isActive,
-          createdAt: parseFloat(details.createdAt),
-          timeRemaining: parseFloat(details.timeRemaining),
-        };
-      }
-
-      return result;
-    } catch (error) {
-      console.error('Error getting all LastTx:', error);
-      return {};
-    }
-  }
-
-  // Send activity pulse
-  static async sendActivityPulse(id: string): Promise<string> {
+  // Claim inheritance from a will
+  static async claimWill(
+    ownerAddress: string,
+    willId: string,
+  ): Promise<string> {
     try {
       const transactionId = await fcl.mutate({
-        cadence: transactions.SEND_ACTIVITY_PULSE,
-        args: (arg: any, t: any) => [arg(id, t.UInt64)],
+        cadence: TRANSACTIONS.CLAIM_WILL,
+        args: (arg: any, t: any) => [
+          arg(ownerAddress, t.Address),
+          arg(willId, t.UInt64),
+        ],
+        proposer: fcl.currentUser,
+        payer: fcl.currentUser,
+        authorizations: [fcl.currentUser],
+        limit: 1000,
+      });
+
+      await fcl.tx(transactionId).onceSealed();
+      return transactionId;
+    } catch (error) {
+      console.error('Error claiming will:', error);
+      throw error;
+    }
+  }
+
+  // Update existing will (single beneficiary)
+  static async updateWill(
+    willId: string,
+    inactivityDuration: number,
+    beneficiaryAddress: string,
+    beneficiaryPercentage: number,
+    beneficiaryName: string = '',
+    personalMessage: string = '',
+  ): Promise<string> {
+    try {
+      const transactionId = await fcl.mutate({
+        cadence: TRANSACTIONS.UPDATE_WILL,
+        args: (arg: any, t: any) => [
+          arg(willId, t.UInt64),
+          arg(inactivityDuration.toFixed(8), t.UFix64),
+          arg(beneficiaryAddress, t.Address),
+          arg(beneficiaryPercentage.toFixed(8), t.UFix64),
+          arg(beneficiaryName, t.String),
+          arg(personalMessage, t.String),
+        ],
+        proposer: fcl.currentUser,
+        payer: fcl.currentUser,
+        authorizations: [fcl.currentUser],
+        limit: 1000,
+      });
+
+      await fcl.tx(transactionId).onceSealed();
+      return transactionId;
+    } catch (error) {
+      console.error('Error updating will:', error);
+      throw error;
+    }
+  }
+
+  // Delete existing will
+  static async deleteWill(willId: string): Promise<string> {
+    try {
+      const transactionId = await fcl.mutate({
+        cadence: TRANSACTIONS.DELETE_WILL,
+        args: (arg: any, t: any) => [arg(willId, t.UInt64)],
+        proposer: fcl.currentUser,
+        payer: fcl.currentUser,
+        authorizations: [fcl.currentUser],
+        limit: 1000,
+      });
+
+      await fcl.tx(transactionId).onceSealed();
+      return transactionId;
+    } catch (error) {
+      console.error('Error deleting will:', error);
+      throw error;
+    }
+  }
+
+  // Send activity pulse to reset timer
+  static async sendActivityPulse(willId: string): Promise<string> {
+    try {
+      const transactionId = await fcl.mutate({
+        cadence: TRANSACTIONS.SEND_ACTIVITY_PULSE,
+        args: (arg: any, t: any) => [arg(willId, t.UInt64)],
         proposer: fcl.currentUser,
         payer: fcl.currentUser,
         authorizations: [fcl.currentUser],
@@ -206,148 +154,79 @@ export class LastTxService {
     }
   }
 
-  // Deposit funds
-  static async depositFunds(id: string, amount: number): Promise<string> {
+  // Get all wills for an account
+  static async getAllWills(
+    address: string,
+  ): Promise<Record<string, WillDetails>> {
     try {
-      const transactionId = await fcl.mutate({
-        cadence: transactions.DEPOSIT_FUNDS,
+      const allData = await fcl.query({
+        cadence: SCRIPTS.GET_ALL_WILLS,
+        args: (arg: any, t: any) => [arg(address, t.Address)],
+      });
+
+      const result: Record<string, WillDetails> = {};
+
+      for (const [id, details] of Object.entries(
+        allData as Record<string, any>,
+      )) {
+        result[id] = {
+          id: details.id.toString(),
+          owner: details.owner,
+          beneficiaries: details.beneficiaries.map((b: any) => ({
+            address: b.address,
+            percentage: parseFloat(b.percentage),
+            name: b.name,
+          })),
+          inactivityDuration: parseFloat(details.inactivityDuration),
+          lastActivity: parseFloat(details.lastActivity),
+          personalMessage: details.personalMessage ?? '',
+          isClaimed: details.isClaimed,
+          isExpired: details.isExpired,
+          createdAt: parseFloat(details.createdAt),
+        };
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error getting all wills:', error);
+      return {};
+    }
+  }
+
+  // Get will details
+  static async getWillDetails(
+    address: string,
+    willId: string,
+  ): Promise<WillDetails | null> {
+    try {
+      const details = await fcl.query({
+        cadence: SCRIPTS.GET_WILL_DETAIL,
         args: (arg: any, t: any) => [
-          arg(id, t.UInt64),
-          arg(amount.toFixed(8), t.UFix64),
+          arg(address, t.Address),
+          arg(willId, t.UInt64),
         ],
-        proposer: fcl.currentUser,
-        payer: fcl.currentUser,
-        authorizations: [fcl.currentUser],
-        limit: 1000,
       });
 
-      await fcl.tx(transactionId).onceSealed();
-      return transactionId;
-    } catch (error) {
-      console.error('Error depositing funds:', error);
-      throw error;
-    }
-  }
+      if (!details) return null;
 
-  // Distribute funds
-  static async distributeFunds(id: string): Promise<string> {
-    try {
-      const transactionId = await fcl.mutate({
-        cadence: transactions.DISTRIBUTE_FUNDS,
-        args: (arg: any, t: any) => [arg(id, t.UInt64)],
-        proposer: fcl.currentUser,
-        payer: fcl.currentUser,
-        authorizations: [fcl.currentUser],
-        limit: 1000,
-      });
-
-      await fcl.tx(transactionId).onceSealed();
-      return transactionId;
-    } catch (error) {
-      console.error('Error distributing funds:', error);
-      throw error;
-    }
-  }
-
-  // Get account balance
-  static async getAccountBalance(address: string): Promise<number> {
-    try {
-      const balance = await fcl.query({
-        cadence: scripts.GET_ACCOUNT_BALANCE,
-        args: (arg: any, t: any) => [arg(address, t.Address)],
-      });
-      return parseFloat(balance);
-    } catch (error) {
-      console.error('Error getting account balance:', error);
-      return 0;
-    }
-  }
-
-  // Get expired LastTx
-  static async getExpiredLastTx(address: string): Promise<string[]> {
-    try {
-      const ids = await fcl.query({
-        cadence: scripts.GET_EXPIRED_LASTTX,
-        args: (arg: any, t: any) => [arg(address, t.Address)],
-      });
-      return ids.map((id: any) => id.toString());
-    } catch (error) {
-      console.error('Error getting expired LastTx:', error);
-      return [];
-    }
-  }
-
-  // Get global stats
-  static async getGlobalStats(): Promise<{ totalCreated: number }> {
-    try {
-      const stats = await fcl.query({
-        cadence: scripts.GET_LASTTX_STATS,
-        args: () => [],
-      });
       return {
-        totalCreated: parseInt(stats.totalCreated),
+        id: details.id.toString(),
+        owner: details.owner,
+        beneficiaries: details.beneficiaries.map((b: any) => ({
+          address: b.address,
+          percentage: parseFloat(b.percentage),
+          name: b.name,
+        })),
+        inactivityDuration: parseFloat(details.inactivityDuration),
+        lastActivity: parseFloat(details.lastActivity),
+        personalMessage: details.personalMessage ?? '',
+        isClaimed: details.isClaimed,
+        isExpired: details.isExpired,
+        createdAt: parseFloat(details.createdAt),
       };
     } catch (error) {
-      console.error('Error getting global stats:', error);
-      return { totalCreated: 0 };
-    }
-  }
-
-  // Update existing LastTx
-  static async updateLastTx(
-    id: string,
-    inactivityDuration: number,
-    beneficiaries: Beneficiary[],
-    personalMessage?: string,
-  ): Promise<string> {
-    try {
-      const beneficiaryAddresses = beneficiaries.map((b) => b.address);
-      const beneficiaryPercentages = beneficiaries.map((b) =>
-        b.percentage.toFixed(2),
-      );
-      const beneficiaryNames = beneficiaries.map((b) => b.name ?? null);
-
-      const transactionId = await fcl.mutate({
-        cadence: transactions.UPDATE_LASTTX,
-        args: (arg: any, t: any) => [
-          arg(parseInt(id), t.UInt64),
-          arg(inactivityDuration.toFixed(2), t.UFix64),
-          arg(beneficiaryAddresses, t.Array(t.Address)),
-          arg(beneficiaryPercentages, t.Array(t.UFix64)),
-          arg(beneficiaryNames, t.Array(t.Optional(t.String))),
-          arg(personalMessage ?? null, t.Optional(t.String)),
-        ],
-        proposer: fcl.currentUser,
-        payer: fcl.currentUser,
-        authorizations: [fcl.currentUser],
-        limit: 1000,
-      });
-
-      await fcl.tx(transactionId).onceSealed();
-      return transactionId;
-    } catch (error) {
-      console.error('Error updating LastTx:', error);
-      throw error;
-    }
-  }
-
-  // Delete existing LastTx
-  static async deleteLastTx(id: string): Promise<string> {
-    try {
-      const transactionId = await fcl.mutate({
-        cadence: transactions.DELETE_LASTTX,
-        args: (arg: any, t: any) => [arg(parseInt(id), t.UInt64)],
-        proposer: fcl.currentUser,
-        payer: fcl.currentUser,
-        authorizations: [fcl.currentUser],
-        limit: 1000,
-      });
-
-      await fcl.tx(transactionId).onceSealed();
-      return transactionId;
-    } catch (error) {
-      console.error('Error deleting LastTx:', error);
-      throw error;
+      console.error('Error getting will details:', error);
+      return null;
     }
   }
 }

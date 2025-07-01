@@ -36,7 +36,7 @@ interface InheritanceRule {
 
 export default function CreateWillPage() {
   const router = useRouter();
-  const { createLastTx, loading, accountSetup, setupAccount } = useLastTx();
+  const { createWill, loading, accountSetup, setupAccount } = useLastTx();
 
   const [rule, setRule] = useState<InheritanceRule>({
     beneficiaryAddress: '',
@@ -90,20 +90,13 @@ export default function CreateWillPage() {
       // Convert days to seconds for smart contract
       const inactivityDurationSeconds = rule.inactivityPeriod * 24 * 60 * 60;
 
-      // Create beneficiary array for smart contract
-      const beneficiaries = [
-        {
-          address: rule.beneficiaryAddress,
-          percentage: rule.percentage,
-          name: rule.beneficiaryName,
-        },
-      ];
-
-      // Create LastTx on blockchain
-      const success = await createLastTx(
+      // Create will on blockchain with new format
+      const success = await createWill(
+        rule.beneficiaryAddress, // single beneficiary address
+        rule.percentage, // single percentage
         inactivityDurationSeconds,
-        beneficiaries,
-        rule.message, // Pass personal message to blockchain
+        rule.beneficiaryName, // single beneficiary name
+        rule.message, // personal message
       );
 
       if (success) {

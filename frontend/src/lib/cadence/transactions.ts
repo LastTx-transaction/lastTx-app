@@ -1,238 +1,158 @@
-// Cadence transactions for blockchain write operations
+// Cadence transactions for modifying blockchain state
 
-export const SETUP_ACCOUNT = `
-import LastTx from 0xLastTx
+export const CREATE_WILL = `
+import LastTx from 0xf8d6e0586b0a20c7
+import FungibleToken from 0xee82856bf20e2aa6
+import FlowToken from 0x0ae53cb6e3f42a79
 
-transaction {
+transaction(
+    beneficiaryAddress: Address, 
+    percentage: UFix64,
+    inactivityDuration: UFix64,
+    beneficiaryName: String,
+    personalMessage: String
+) {
+    let collection: &LastTx.Collection
+    let vaultCapability: Capability<auth(FungibleToken.Withdraw) &FlowToken.Vault>
+    
     prepare(signer: auth(Storage, Capabilities) &Account) {
-        // Check if collection already exists
         if signer.storage.borrow<&LastTx.Collection>(from: LastTx.LastTxStoragePath) == nil {
-            // Create and store collection
-            let collection <- LastTx.createEmptyCollection()
-            signer.storage.save(<-collection, to: LastTx.LastTxStoragePath)
+            signer.storage.save(<-LastTx.createEmptyCollection(), to: LastTx.LastTxStoragePath)
             
-            // Create public capability
-            let cap = signer.capabilities.storage.issue<&LastTx.Collection>(LastTx.LastTxStoragePath)
-            signer.capabilities.publish(cap, at: LastTx.LastTxPublicPath)
+            let publicCap = signer.capabilities.storage.issue<&LastTx.Collection>(LastTx.LastTxStoragePath)
+            signer.capabilities.publish(publicCap, at: LastTx.LastTxPublicPath)
+        }
+        
+        self.collection = signer.storage.borrow<&LastTx.Collection>(from: LastTx.LastTxStoragePath)!
+        
+        self.vaultCapability = signer.capabilities.storage.issue<auth(FungibleToken.Withdraw) &FlowToken.Vault>(/storage/flowTokenVault)
+    }
+    
+    execute {
+        let beneficiary = LastTx.createBeneficiary(
+            address: beneficiaryAddress,
+            percentage: percentage,
+            name: beneficiaryName == "" ? nil : beneficiaryName
+        )
+        let beneficiaries: [LastTx.Beneficiary] = [beneficiary]
+        
+        let lastTxId = self.collection.createLastTx(
+            inactivityDuration: inactivityDuration,
+            beneficiaries: beneficiaries,
+            personalMessage: personalMessage == "" ? nil : personalMessage,
+            vaultCapability: self.vaultCapability
+        )
+        
+        log("LastTx inheritance will created successfully!")
+    }
+}
+`;
+
+export const CLAIM_WILL = `
+import LastTx from 0xf8d6e0586b0a20c7
+import FungibleToken from 0xee82856bf20e2aa6
+import FlowToken from 0x0ae53cb6e3f42a79
+
+transaction(ownerAddress: Address, lastTxId: UInt64) {
+    
+    let beneficiaryVault: &FlowToken.Vault
+    let lastTxCollection: &LastTx.Collection
+    
+    prepare(beneficiarySigner: auth(Storage) &Account) {
+        self.beneficiaryVault = beneficiarySigner.storage.borrow<&FlowToken.Vault>(from: /storage/flowTokenVault)!
+        
+        let ownerAccount = getAccount(ownerAddress)
+        self.lastTxCollection = ownerAccount.capabilities.borrow<&LastTx.Collection>(LastTx.LastTxPublicPath)!
+    }
+    
+    execute {
+        let success = self.lastTxCollection.claimInheritance(
+            id: lastTxId,
+            beneficiaryVault: self.beneficiaryVault
+        )
+        
+        if success {
+            log("Inheritance claimed successfully!")
+        } else {
+            log("Inheritance claim failed!")
         }
     }
 }
 `;
 
-export const CREATE_LASTTX = `
-import LastTx from 0xLastTx
+export const UPDATE_WILL = `
+import LastTx from 0xf8d6e0586b0a20c7
 
 transaction(
-    inactivityDuration: UFix64,
-    beneficiaryAddresses: [Address],
-    beneficiaryPercentages: [UFix64],
-    beneficiaryNames: [String?],
-    personalMessage: String?
+    id: UInt64, 
+    inactivityDuration: UFix64, 
+    beneficiaryAddress: Address,
+    beneficiaryPercentage: UFix64,
+    beneficiaryName: String,
+    personalMessage: String
 ) {
-    prepare(signer: auth(Storage) &Account) {
-        // Get collection reference
-        let collection = signer.storage.borrow<&LastTx.Collection>(from: LastTx.LastTxStoragePath)
-            ?? panic("Could not borrow LastTx Collection from signer")
+    
+    prepare(signer: auth(BorrowValue) &Account) {
+        let collectionRef = signer.storage.borrow<&LastTx.Collection>(from: LastTx.LastTxStoragePath)
+            ?? panic("Could not borrow LastTx Collection from storage")
         
-        // Create beneficiaries array
-        let beneficiaries: [LastTx.Beneficiary] = []
-        var i = 0
-        while i < beneficiaryAddresses.length {
-            let beneficiary = LastTx.createBeneficiary(
-                address: beneficiaryAddresses[i],
-                percentage: beneficiaryPercentages[i],
-                name: beneficiaryNames[i]
-            )
-            beneficiaries.append(beneficiary)
-            i = i + 1
-        }
+        let beneficiary = LastTx.createBeneficiary(
+            address: beneficiaryAddress,
+            percentage: beneficiaryPercentage,
+            name: beneficiaryName == "" ? nil : beneficiaryName
+        )
+        let beneficiaries: [LastTx.Beneficiary] = [beneficiary]
         
-        // Create LastTx
-        let id = collection.createLastTx(
-            owner: signer.address,
+        let lastTxRef = collectionRef.borrowLastTx(id: id)
+            ?? panic("Could not borrow LastTx reference")
+        
+        lastTxRef.updateLastTx(
             inactivityDuration: inactivityDuration,
             beneficiaries: beneficiaries,
-            personalMessage: personalMessage
+            personalMessage: personalMessage == "" ? nil : personalMessage
         )
         
-        log("LastTx created with ID: ".concat(id.toString()))
+        log("LastTx updated successfully!")
+    }
+}
+`;
+
+export const DELETE_WILL = `
+import LastTx from 0xf8d6e0586b0a20c7
+
+transaction(id: UInt64) {
+    let collection: &LastTx.Collection
+    
+    prepare(signer: auth(Storage) &Account) {
+        self.collection = signer.storage.borrow<&LastTx.Collection>(from: LastTx.LastTxStoragePath)
+            ?? panic("Could not borrow LastTx Collection from storage")
+    }
+    
+    execute {
+        self.collection.deleteLastTx(id: id)
+        log("LastTx deleted successfully!")
     }
 }
 `;
 
 export const SEND_ACTIVITY_PULSE = `
-import LastTx from 0xLastTx
+import LastTx from 0xf8d6e0586b0a20c7
 
-transaction(id: UInt64) {
-    prepare(signer: auth(Storage) &Account) {
-        // Get collection reference
-        let collection = signer.storage.borrow<&LastTx.Collection>(from: LastTx.LastTxStoragePath)
-            ?? panic("Could not borrow LastTx Collection from signer")
-        
-        // Get LastTx reference
-        let lastTx = collection.borrowLastTx(id: id)
-            ?? panic("Could not borrow LastTx with ID: ".concat(id.toString()))
-        
-        // Send activity pulse
-        lastTx.sendActivityPulse()
-        
-        log("Activity pulse sent for LastTx ID: ".concat(id.toString()))
-    }
-}
-`;
-
-export const DEPOSIT_FUNDS = `
-import LastTx from 0xLastTx
-import FlowToken from 0xFlowToken
-import FungibleToken from 0xFungibleToken
-
-transaction(id: UInt64, amount: UFix64) {
-    let sentVault: @{FungibleToken.Vault}
+transaction(lastTxId: UInt64) {
+    let collectionRef: &LastTx.Collection
     
     prepare(signer: auth(Storage) &Account) {
-        // Get the signer's stored vault
-        let vaultRef = signer.storage.borrow<auth(FungibleToken.Withdraw) &FlowToken.Vault>(from: /storage/flowTokenVault)
-            ?? panic("Could not borrow reference to the owner's Vault!")
-
-        // Withdraw tokens from the signer's stored vault
-        self.sentVault <- vaultRef.withdraw(amount: amount)
+        self.collectionRef = signer.storage.borrow<&LastTx.Collection>(from: LastTx.LastTxStoragePath)
+            ?? panic("Could not borrow LastTx collection from storage")
     }
-
+    
     execute {
-        // Get the recipient's public account object
-        let recipient = getAccount(0xLastTx)
-
-        // Get a reference to the recipient's LastTx collection
-        let collectionRef = recipient.capabilities.get<&LastTx.Collection>(LastTx.LastTxPublicPath)
-            .borrow()
-            ?? panic("Could not borrow receiver reference to the recipient's LastTx Collection")
-
-        // Get LastTx reference
-        let lastTx = collectionRef.borrowLastTx(id: id)
-            ?? panic("Could not borrow LastTx with ID: ".concat(id.toString()))
-
-        // Deposit the withdrawn tokens in the LastTx
-        lastTx.deposit(from: <-self.sentVault)
+        let lastTxRef = self.collectionRef.borrowLastTx(id: lastTxId)
+            ?? panic("Could not borrow LastTx reference")
         
-        log("Deposited ".concat(amount.toString()).concat(" tokens to LastTx ID: ").concat(id.toString()))
-    }
-}
-`;
-
-export const DISTRIBUTE_FUNDS = `
-import LastTx from 0xLastTx
-import FlowToken from 0xFlowToken
-import FungibleToken from 0xFungibleToken
-
-transaction(id: UInt64) {
-    prepare(signer: auth(Storage) &Account) {
-        // Get collection reference
-        let collection = signer.storage.borrow<&LastTx.Collection>(from: LastTx.LastTxStoragePath)
-            ?? panic("Could not borrow LastTx Collection from signer")
+        lastTxRef.sendActivityPulse()
         
-        // Get LastTx reference
-        let lastTx = collection.borrowLastTx(id: id)
-            ?? panic("Could not borrow LastTx with ID: ".concat(id.toString()))
-        
-        // Check if expired
-        if !lastTx.isExpired() {
-            panic("LastTx is not expired yet")
-        }
-        
-        // Get beneficiaries and distribute
-        let details = lastTx.getDetails()
-        let beneficiaries = details["beneficiaries"]! as! [LastTx.Beneficiary]
-        let distributions <- lastTx.distributeFunds()
-        
-        // Send funds to each beneficiary
-        var i = 0
-        while i < beneficiaries.length {
-            let beneficiary = beneficiaries[i]
-            let beneficiaryAccount = getAccount(beneficiary.address)
-            
-            // Get receiver reference
-            let receiverRef = beneficiaryAccount.capabilities.get<&{FungibleToken.Receiver}>(/public/flowTokenReceiver)
-                .borrow()
-                ?? panic("Could not borrow receiver reference to the recipient's Vault")
-            
-            // Deposit funds
-            let vault <- distributions.removeFirst()
-            receiverRef.deposit(from: <-vault)
-            
-            i = i + 1
-        }
-        
-        // Destroy empty distributions array
-        destroy distributions
-        
-        log("Funds distributed for LastTx ID: ".concat(id.toString()))
-    }
-}
-`;
-
-export const UPDATE_LASTTX = `
-import LastTx from 0xLastTx
-
-transaction(
-    id: UInt64,
-    inactivityDuration: UFix64,
-    beneficiaryAddresses: [Address],
-    beneficiaryPercentages: [UFix64],
-    beneficiaryNames: [String?],
-    personalMessage: String?
-) {
-    prepare(signer: auth(Storage) &Account) {
-        // Get collection reference
-        let collection = signer.storage.borrow<&LastTx.Collection>(from: LastTx.LastTxStoragePath)
-            ?? panic("Could not borrow LastTx Collection from signer")
-        
-        // Create beneficiaries array
-        let beneficiaries: [LastTx.Beneficiary] = []
-        var i = 0
-        while i < beneficiaryAddresses.length {
-            let beneficiary = LastTx.createBeneficiary(
-                address: beneficiaryAddresses[i],
-                percentage: beneficiaryPercentages[i],
-                name: beneficiaryNames[i]
-            )
-            beneficiaries.append(beneficiary)
-            i = i + 1
-        }
-        
-        // Update the LastTx
-        let success = collection.updateLastTx(
-            id: id,
-            inactivityDuration: inactivityDuration,
-            beneficiaries: beneficiaries,
-            personalMessage: personalMessage
-        )
-        
-        if !success {
-            panic("Failed to update LastTx with ID: ".concat(id.toString()))
-        }
-        
-        log("LastTx updated successfully with ID: ".concat(id.toString()))
-    }
-}
-`;
-
-export const DELETE_LASTTX = `
-import LastTx from 0xLastTx
-
-transaction(id: UInt64) {
-    prepare(signer: auth(Storage) &Account) {
-        // Get collection reference
-        let collection = signer.storage.borrow<&LastTx.Collection>(from: LastTx.LastTxStoragePath)
-            ?? panic("Could not borrow LastTx Collection from signer")
-        
-        // Delete the LastTx
-        let success = collection.deleteLastTx(id: id)
-        
-        if !success {
-            panic("Failed to delete LastTx with ID: ".concat(id.toString()))
-        }
-        
-        log("LastTx deleted successfully with ID: ".concat(id.toString()))
+        log("Activity pulse sent successfully for LastTx ID: ".concat(lastTxId.toString()))
     }
 }
 `;

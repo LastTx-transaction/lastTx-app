@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useLastTx } from '@/lib/hooks/useLastTx';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { AuthRequired } from '@/components/auth/AuthButton';
-import { LastTxService } from '@/lib/lasttx-service';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -20,13 +19,12 @@ import {
   CheckCircle,
   Bell,
   Gift,
-  ExternalLink,
   DollarSign,
 } from 'lucide-react';
 
 export default function ClaimWillPage() {
   const { user, isAuthenticated } = useAuth();
-  const { expiredLastTxs, refresh } = useLastTx();
+  const { expiredWills, claimWill, refresh } = useLastTx();
   const [isMounted, setIsMounted] = useState(false);
   const [claiming, setClaiming] = useState<string | null>(null);
 
@@ -34,11 +32,11 @@ export default function ClaimWillPage() {
     setIsMounted(true);
   }, []);
 
-  // Convert expired LastTx contracts to notification format
-  const notifications = expiredLastTxs
-    .map((lastTx, index) => {
+  // Convert expired wills to notification format
+  const notifications = expiredWills
+    .map((will, index) => {
       const id = `notification_${index}`;
-      const beneficiary = lastTx.beneficiaries.find(
+      const beneficiary = will.beneficiaries.find(
         (b) => b.address === user?.addr,
       );
 
@@ -47,20 +45,20 @@ export default function ClaimWillPage() {
       return {
         id,
         type: 'inheritance_available' as const,
-        fromName: `Creator ${lastTx.id?.slice(0, 8) ?? 'Unknown'}`,
-        fromAddress: lastTx.id ?? 'Unknown',
+        fromName: `Creator ${will.id?.slice(0, 8) ?? 'Unknown'}`,
+        fromAddress: will.owner ?? 'Unknown',
         percentage: beneficiary.percentage,
-        estimatedValue: (lastTx.balance ?? 0).toFixed(2),
+        estimatedValue: '0.00', // Not available in new interface
         token: 'FLOW' as const,
-        triggeredDate: new Date(lastTx.lastActivity * 1000)
+        triggeredDate: new Date(will.lastActivity * 1000)
           .toISOString()
           .split('T')[0],
-        message: `Inheritance from contract ${
-          lastTx.id?.slice(0, 8) ?? 'Unknown'
-        }`,
-        contractAddress: `Contract #${index}`,
+        message:
+          will.personalMessage ||
+          `Inheritance from will ${will.id?.slice(0, 8) ?? 'Unknown'}`,
+        contractAddress: `Will #${will.id}`,
         status: 'claimable' as const,
-        rawData: lastTx,
+        rawData: will,
       };
     })
     .filter((n): n is NonNullable<typeof n> => n !== null);
@@ -74,17 +72,15 @@ export default function ClaimWillPage() {
     setClaiming(notificationId);
 
     try {
-      // Find the notification and get the contract data
+      // Find the notification and get the will data
       const notification = notifications.find((n) => n?.id === notificationId);
       if (!notification) {
         alert('Notification not found');
         return;
       }
 
-      // For now, we'll use distributeFunds which should distribute to the beneficiaries
-      // In a full implementation, we'd need a specific "claim" function
-      const contractId = notification.id.replace('notification_', '');
-      const success = await LastTxService.distributeFunds(contractId);
+      const will = notification.rawData;
+      const success = await claimWill(will.owner, will.id);
 
       if (success) {
         alert('Inheritance claimed successfully!');

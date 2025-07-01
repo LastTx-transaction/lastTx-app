@@ -3,12 +3,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { LastTxDetails } from '@/lib/lasttx-service';
+import { WillDetails } from '@/lib/lasttx-service';
 import { Clock, Users, Coins, Activity, AlertTriangle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface LastTxCardProps {
-  lastTx: LastTxDetails;
+  lastTx: WillDetails;
   onActivityPulse: (id: string) => void;
   onDepositFunds: (id: string) => void;
   onDistributeFunds: (id: string) => void;
@@ -35,7 +35,7 @@ export function LastTxCard({
   };
 
   const isExpired = lastTx.isExpired;
-  const timeRemaining = lastTx.timeRemaining;
+  const timeRemaining = 0; // Not available in new interface
 
   return (
     <Card className={`w-full ${isExpired ? 'border-red-200 bg-red-50' : ''}`}>
@@ -63,7 +63,8 @@ export function LastTxCard({
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div className="flex items-center gap-2">
             <Coins className="h-4 w-4 text-muted-foreground" />
-            <span>Balance: {lastTx.balance.toFixed(4)} FLOW</span>
+            <span>Balance: 0.0000 FLOW</span>{' '}
+            {/* Not available in new interface */}
           </div>
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-muted-foreground" />
@@ -126,7 +127,7 @@ export function LastTxCard({
               </Button>
             </>
           )}
-          {isExpired && lastTx.balance > 0 && (
+          {isExpired && (
             <Button
               variant="destructive"
               size="sm"

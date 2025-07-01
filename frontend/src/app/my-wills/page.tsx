@@ -19,11 +19,9 @@ import {
   ConfirmDialog,
   NotificationDialog,
 } from '@/components/ui/confirm-dialog';
-import { ContractInfoDialog } from '@/components/ui/contract-info-dialog';
 import {
   Shield,
   Users,
-  ExternalLink,
   Clock,
   CheckCircle,
   AlertTriangle,
@@ -90,7 +88,7 @@ export default function MyWillsPage() {
     );
 
     let status = 'active';
-    if (!lastTx.isActive) status = 'inactive';
+    if (lastTx.isClaimed) status = 'inactive';
     else if (lastTx.isExpired) status = 'triggered';
     else if (daysUntilTrigger <= 30) status = 'warning';
 
@@ -251,41 +249,6 @@ export default function MyWillsPage() {
     return inheritanceRules
       .filter((rule) => rule.status !== 'triggered')
       .reduce((total, rule) => total + rule.percentage, 0);
-  };
-
-  // Contract view dialog state
-  const [contractDialog, setContractDialog] = useState<{
-    open: boolean;
-    contractData: Record<string, unknown> | null;
-  }>({
-    open: false,
-    contractData: null,
-  });
-
-  const viewContract = (lastTxId: string) => {
-    if (!user?.addr) return;
-
-    // Determine the correct Flowscan URL based on network
-    // For emulator/testnet, we'll show internal dialog
-    // For mainnet, we'll open Flowscan
-    const isMainnet = user.addr.startsWith('0x') && user.addr.length === 18;
-
-    if (isMainnet) {
-      // Open Flowscan for mainnet
-      const flowscanUrl = `https://www.flowscan.io/account/${user.addr}`;
-      window.open(flowscanUrl, '_blank');
-    } else {
-      // Show internal dialog for emulator/testnet
-      const contractData = inheritanceRules.find(
-        (rule) => rule.id === lastTxId,
-      );
-      if (contractData) {
-        setContractDialog({
-          open: true,
-          contractData: contractData as Record<string, unknown>,
-        });
-      }
-    }
   };
 
   // Show loading state
@@ -572,20 +535,6 @@ export default function MyWillsPage() {
 
                         <div className="mt-6 flex justify-between items-center">
                           <div className="flex space-x-2">
-                            {/* <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => viewContract(rule.id)}
-                              title={
-                                user?.addr?.startsWith('0x') &&
-                                user.addr.length === 18
-                                  ? 'View on Flowscan (Blockchain Explorer)'
-                                  : 'View Contract Details'
-                              }
-                            >
-                              <ExternalLink className="h-4 w-4 mr-2" />
-                              View Contract
-                            </Button> */}
                             {rule.status !== 'triggered' && (
                               <>
                                 <Button
@@ -676,26 +625,6 @@ export default function MyWillsPage() {
         title={notification.title}
         description={notification.description}
         type={notification.type}
-      />
-
-      {/* Contract Info Dialog */}
-      <ContractInfoDialog
-        open={contractDialog.open}
-        onOpenChange={(open) => setContractDialog({ ...contractDialog, open })}
-        contractData={
-          contractDialog.contractData as {
-            id: string;
-            beneficiaryName: string;
-            beneficiaryAddress: string;
-            percentage: number;
-            inactivityPeriod: number;
-            lastActivity: string;
-            status: string;
-            daysUntilTrigger: number;
-            contractAddress: string;
-          } | null
-        }
-        userAddress={user?.addr}
       />
     </AuthRequired>
   );
