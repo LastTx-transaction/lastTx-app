@@ -8,12 +8,27 @@ export interface User {
   addr?: string;
   loggedIn: boolean;
   balance?: string;
+  balanceVisible?: boolean; // ✨ New field for balance visibility
 }
 
 export function useAuth() {
-  const [user, setUser] = useState<User>({ loggedIn: false });
+  const [user, setUser] = useState<User>({
+    loggedIn: false,
+    balanceVisible: true,
+  });
   const [loading, setLoading] = useState(true);
   const [balanceLoading, setBalanceLoading] = useState(false);
+
+  // Load balance visibility preference from localStorage
+  useEffect(() => {
+    const savedVisibility = localStorage.getItem('balanceVisible');
+    if (savedVisibility !== null) {
+      setUser((prev) => ({
+        ...prev,
+        balanceVisible: savedVisibility === 'true',
+      }));
+    }
+  }, []);
 
   // Function to fetch FLOW balance
   const fetchBalance = async (address: string) => {
@@ -47,6 +62,7 @@ export function useAuth() {
         addr: currentUser.addr,
         loggedIn: currentUser.loggedIn ?? false,
         balance: '0.00',
+        balanceVisible: user.balanceVisible ?? true, // Preserve balance visibility state
       };
 
       // If user is logged in, fetch their balance
@@ -62,7 +78,7 @@ export function useAuth() {
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [user.balanceVisible]);
 
   // Function to refresh balance manually
   const refreshBalance = async () => {
@@ -96,6 +112,15 @@ export function useAuth() {
     }
   };
 
+  // Function to toggle balance visibility
+  const toggleBalanceVisibility = () => {
+    setUser((prev) => {
+      const newVisibility = !prev.balanceVisible;
+      localStorage.setItem('balanceVisible', newVisibility.toString());
+      return { ...prev, balanceVisible: newVisibility };
+    });
+  };
+
   return {
     user,
     loading,
@@ -103,6 +128,7 @@ export function useAuth() {
     signIn,
     signOut,
     refreshBalance,
+    toggleBalanceVisibility,
     isAuthenticated: user.loggedIn,
   };
 }
