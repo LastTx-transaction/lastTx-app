@@ -14,20 +14,47 @@ access(all) contract LastTx {
     /// Storage and public paths
     access(all) let LastTxStoragePath: StoragePath
     access(all) let LastTxPublicPath: PublicPath
+    access(all) let UserProfileStoragePath: StoragePath
+    access(all) let UserProfilePublicPath: PublicPath
     
     /// Global counter for LastTx IDs
     access(all) var nextLastTxId: UInt64
+    
+    /// User profile for storing owner information
+    access(all) struct UserProfile {
+        access(all) let owner: Address
+        access(all) var email: String?
+        access(all) var name: String?
+        access(all) let createdAt: UFix64
+        access(all) var updatedAt: UFix64
+        
+        init(owner: Address, email: String?, name: String?) {
+            self.owner = owner
+            self.email = email
+            self.name = name
+            self.createdAt = getCurrentBlock().timestamp
+            self.updatedAt = getCurrentBlock().timestamp
+        }
+        
+        access(all) fun updateProfile(email: String?, name: String?) {
+            self.email = email
+            self.name = name
+            self.updatedAt = getCurrentBlock().timestamp
+        }
+    }
     
     /// Beneficiary information struct
     access(all) struct Beneficiary {
         access(all) let address: Address
         access(all) let percentage: UFix64
         access(all) let name: String?
+        access(all) let email: String?
         
-        init(address: Address, percentage: UFix64, name: String?) {
+        init(address: Address, percentage: UFix64, name: String?, email: String?) {
             self.address = address
             self.percentage = percentage
             self.name = name
+            self.email = email
         }
     }
     
@@ -214,9 +241,29 @@ access(all) contract LastTx {
     /// Collection to store and manage multiple LastTx instances
     access(all) resource Collection {
         access(all) var lastTxs: @{UInt64: LastTxInstance}
+        access(all) var userProfile: UserProfile?
         
         init() {
             self.lastTxs <- {}
+            self.userProfile = nil
+        }
+        
+        /// Create or update user profile
+        access(all) fun setUserProfile(email: String?, name: String?) {
+            if self.userProfile == nil {
+                self.userProfile = UserProfile(
+                    owner: self.owner!.address,
+                    email: email,
+                    name: name
+                )
+            } else {
+                self.userProfile!.updateProfile(email: email, name: name)
+            }
+        }
+        
+        /// Get user profile
+        access(all) fun getUserProfile(): UserProfile? {
+            return self.userProfile
         }
         
         /// Create new LastTx inheritance will
@@ -325,8 +372,8 @@ access(all) contract LastTx {
     }
     
     /// Create beneficiary struct with validation
-    access(all) fun createBeneficiary(address: Address, percentage: UFix64, name: String?): Beneficiary {
-        return Beneficiary(address: address, percentage: percentage, name: name)
+    access(all) fun createBeneficiary(address: Address, percentage: UFix64, name: String?, email: String?): Beneficiary {
+        return Beneficiary(address: address, percentage: percentage, name: name, email: email)
     }
     
     /// Get total number of LastTx instances created
@@ -339,5 +386,7 @@ access(all) contract LastTx {
         
         self.LastTxStoragePath = /storage/LastTxCollection
         self.LastTxPublicPath = /public/LastTxCollection
+        self.UserProfileStoragePath = /storage/LastTxUserProfile
+        self.UserProfilePublicPath = /public/LastTxUserProfile
     }
 }

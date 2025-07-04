@@ -6,6 +6,7 @@ import { useLastTx } from '@/lib/hooks/useLastTx';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { AuthRequired } from '@/components/auth/AuthButton';
 import { LastTxService } from '@/lib/lasttx-service';
+import { UserProfileService } from '@/lib/services/user-profile.service';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -29,6 +30,7 @@ import {
   Edit,
   Trash2,
   Plus,
+  Settings,
 } from 'lucide-react';
 
 export default function MyWillsPage() {
@@ -71,10 +73,70 @@ export default function MyWillsPage() {
     description: '',
   });
   const [dialogLoading, setDialogLoading] = useState(false);
+  const [userHasEmail, setUserHasEmail] = useState<boolean | null>(null);
+  const [expiryWarnings, setExpiryWarnings] = useState<
+    Record<
+      string,
+      {
+        isExpired: boolean;
+        isExpiringSoon: boolean;
+        formattedTimeRemaining: string;
+      }
+    >
+  >({});
 
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // Check user email setup and expiry status
+  useEffect(() => {
+    const checkUserEmailAndExpiry = async () => {
+      if (!user?.addr) return;
+
+      try {
+        // Check if user has email configured
+        const hasEmail = await UserProfileService.hasEmail(user.addr);
+        setUserHasEmail(hasEmail);
+
+        // Check expiry status for all wills
+        const warnings: {
+          [key: string]: {
+            isExpired: boolean;
+            isExpiringSoon: boolean;
+            formattedTimeRemaining: string;
+          };
+        } = {};
+        Object.entries(lastTxs).forEach(([id, will]) => {
+          if (will && typeof will === 'object') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const willData = will as any;
+            const lastActivity = parseFloat(willData.lastActivity ?? '0');
+            const inactivityDuration = parseFloat(
+              willData.inactivityDuration ?? '0',
+            );
+
+            const status = LastTxService.getExpiryStatus(
+              lastActivity,
+              inactivityDuration,
+            );
+            warnings[id] = {
+              isExpired: status.isExpired,
+              isExpiringSoon: status.isExpiringSoon,
+              formattedTimeRemaining: status.formattedTimeRemaining,
+            };
+          }
+        });
+        setExpiryWarnings(warnings);
+      } catch (error) {
+        console.error('Error checking user email and expiry:', error);
+      }
+    };
+
+    if (isClient && user?.addr && Object.keys(lastTxs).length > 0) {
+      checkUserEmailAndExpiry();
+    }
+  }, [user?.addr, lastTxs, isClient]);
 
   // Convert lastTxs array to display format
   const inheritanceRules = lastTxs.map((lastTx) => {
@@ -303,13 +365,65 @@ export default function MyWillsPage() {
           <div className="max-w-4xl mx-auto">
             {/* Header */}
             <div className="text-center mb-12">
-              <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-                My Inheritance Rules
-              </h1>
-              <p className="text-xl text-muted-foreground">
-                Monitor and manage your inactivity-based inheritance contracts
-              </p>
+              <div className="flex justify-between items-start mb-6">
+                <div className="flex-1">
+                  <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                    My Inheritance Rules
+                  </h1>
+                  <p className="text-xl text-muted-foreground">
+                    Monitor and manage your inactivity-based inheritance
+                    contracts
+                  </p>
+                </div>
+                <div className="flex space-x-3">
+                  <Button
+                    onClick={() => router.push('/settings')}
+                    variant="outline"
+                    className="flex items-center space-x-2"
+                  >
+                    <Settings className="h-4 w-4" />
+                    <span>Settings</span>
+                  </Button>
+                  <Button
+                    onClick={() => router.push('/create-will')}
+                    className="flex items-center space-x-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Create New Will</span>
+                  </Button>
+                </div>
+              </div>
             </div>
+
+            {/* Email Setup Warning */}
+            {userHasEmail === false && (
+              <Card className="mb-8 border-orange-200 bg-orange-50">
+                <CardContent className="pt-6">
+                  <div className="flex items-start space-x-3">
+                    <AlertTriangle className="h-5 w-5 text-orange-600 mt-0.5" />
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-orange-800 mb-1">
+                        📧 Set Up Email Notifications
+                      </h4>
+                      <p className="text-sm text-orange-700 mb-3">
+                        To receive important notifications about your
+                        inheritance wills (like expiry warnings and claim
+                        alerts), please set up your email address.
+                      </p>
+                      <Button
+                        onClick={() => router.push('/settings')}
+                        variant="outline"
+                        size="sm"
+                        className="border-orange-300 text-orange-700 hover:bg-orange-100"
+                      >
+                        <Settings className="h-4 w-4 mr-2" />
+                        Set Up Email Now
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -438,7 +552,14 @@ export default function MyWillsPage() {
                   const getCardClassName = () => {
                     let className =
                       'border-primary/10 hover:shadow-lg transition-shadow';
-                    if (rule.status === 'warning') {
+
+                    // Check expiry status
+                    const expiryStatus = expiryWarnings[rule.id];
+                    if (expiryStatus?.isExpired) {
+                      className += ' border-red-300 bg-red-50/30';
+                    } else if (expiryStatus?.isExpiringSoon) {
+                      className += ' border-orange-300 bg-orange-50/30';
+                    } else if (rule.status === 'warning') {
                       className += ' border-amber-300 bg-amber-50/30';
                     } else if (rule.status === 'triggered') {
                       className += ' border-red-300 bg-red-50/30';
@@ -456,7 +577,24 @@ export default function MyWillsPage() {
                               {rule.beneficiaryName} - {rule.percentage}%
                             </span>
                           </CardTitle>
-                          {getStatusBadge(rule.status, rule.daysUntilTrigger)}
+                          <div className="flex items-center space-x-2">
+                            {/* Expiry Warning Badge */}
+                            {expiryWarnings[rule.id]?.isExpired && (
+                              <Badge variant="destructive" className="text-xs">
+                                🚨 EXPIRED
+                              </Badge>
+                            )}
+                            {expiryWarnings[rule.id]?.isExpiringSoon &&
+                              !expiryWarnings[rule.id]?.isExpired && (
+                                <Badge
+                                  variant="secondary"
+                                  className="text-xs bg-orange-100 text-orange-800"
+                                >
+                                  ⏰ EXPIRING SOON
+                                </Badge>
+                              )}
+                            {getStatusBadge(rule.status, rule.daysUntilTrigger)}
+                          </div>
                         </div>
                         <CardDescription>
                           Contract: {rule.contractAddress}

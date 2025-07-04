@@ -43,23 +43,25 @@ export function useLastTx() {
     inactivityDuration: number,
     beneficiaryName: string = '',
     personalMessage: string = '',
-  ): Promise<boolean> => {
-    if (!isAuthenticated || !accountSetup) return false;
+    beneficiaryEmail: string = '',
+  ): Promise<string | null> => {
+    if (!isAuthenticated || !accountSetup) return null;
 
     try {
       setLoading(true);
-      await LastTxService.createWill(
+      const transactionId = await LastTxService.createWill(
         beneficiaryAddress,
         percentage,
         inactivityDuration,
         beneficiaryName,
         personalMessage,
+        beneficiaryEmail,
       );
       await loadAccountData(); // Reload data
-      return true;
+      return transactionId;
     } catch (error) {
       console.error('Error creating will:', error);
-      return false;
+      return null;
     } finally {
       setLoading(false);
     }
@@ -103,6 +105,7 @@ export function useLastTx() {
     beneficiaryAddress: string,
     beneficiaryPercentage: number,
     beneficiaryName: string = '',
+    beneficiaryEmail: string = '',
     personalMessage: string = '',
   ): Promise<boolean> => {
     if (!isAuthenticated || !accountSetup) return false;
@@ -115,6 +118,7 @@ export function useLastTx() {
         beneficiaryAddress,
         beneficiaryPercentage,
         beneficiaryName,
+        beneficiaryEmail,
         personalMessage,
       );
       await loadAccountData(); // Reload data
@@ -182,13 +186,15 @@ export function useLastTx() {
       const firstBeneficiary = beneficiaries[0];
       if (!firstBeneficiary) return false;
 
-      return await createWill(
+      const result = await createWill(
         firstBeneficiary.address,
         firstBeneficiary.percentage,
         inactivityDuration,
         firstBeneficiary.name ?? '',
         personalMessage ?? '',
+        firstBeneficiary.email ?? '',
       );
+      return result !== null;
     },
     updateLastTx: async (
       id: string,
@@ -206,6 +212,7 @@ export function useLastTx() {
         firstBeneficiary.address,
         firstBeneficiary.percentage,
         firstBeneficiary.name ?? '',
+        firstBeneficiary.email ?? '', // Add email parameter
         personalMessage ?? '',
       );
     },

@@ -36,6 +36,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 interface InheritanceRule {
   beneficiaryAddress: string;
   beneficiaryName: string;
+  beneficiaryEmail: string;
   percentage: number;
   inactivityPeriod: number;
   message: string;
@@ -55,6 +56,7 @@ export default function EditRulePage() {
   const [rule, setRule] = useState<InheritanceRule>({
     beneficiaryAddress: '',
     beneficiaryName: '',
+    beneficiaryEmail: '',
     percentage: 100,
     inactivityPeriod: 30,
     message: '',
@@ -70,11 +72,12 @@ export default function EditRulePage() {
       );
 
       setRule({
-        beneficiaryAddress: beneficiary?.address || '',
-        beneficiaryName: beneficiary?.name || '',
-        percentage: beneficiary?.percentage || 100,
+        beneficiaryAddress: beneficiary?.address ?? '',
+        beneficiaryName: beneficiary?.name ?? '',
+        beneficiaryEmail: beneficiary?.email ?? '',
+        percentage: beneficiary?.percentage ?? 100,
         inactivityPeriod: calculatedPeriod,
-        message: currentRule.personalMessage || '', // Load personal message from blockchain
+        message: currentRule.personalMessage ?? '', // Load personal message from blockchain
       });
       setIsLoading(false);
     } else if (ruleId) {
@@ -102,6 +105,15 @@ export default function EditRulePage() {
       return;
     }
 
+    // Email validation
+    if (
+      rule.beneficiaryEmail &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rule.beneficiaryEmail)
+    ) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
     // Basic Flow address validation
     if (!rule.beneficiaryAddress.startsWith('0x')) {
       setError('Flow address must start with 0x');
@@ -121,6 +133,7 @@ export default function EditRulePage() {
           address: rule.beneficiaryAddress,
           percentage: rule.percentage,
           name: rule.beneficiaryName,
+          email: rule.beneficiaryEmail,
         },
       ];
 
@@ -269,8 +282,28 @@ export default function EditRulePage() {
                       />
                     </div>
 
-                    {/* Beneficiary Address */}
+                    {/* Beneficiary Email */}
                     <div className="space-y-2">
+                      <Label htmlFor="beneficiary-email">
+                        Beneficiary Email (Optional)
+                      </Label>
+                      <Input
+                        id="beneficiary-email"
+                        type="email"
+                        placeholder="john@example.com"
+                        value={rule.beneficiaryEmail}
+                        onChange={(e) =>
+                          updateRule('beneficiaryEmail', e.target.value)
+                        }
+                        disabled={isSaving}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Email address to notify when inheritance is assigned
+                      </p>
+                    </div>
+
+                    {/* Beneficiary Address */}
+                    <div className="space-y-2 md:col-span-2">
                       <Label htmlFor="beneficiary-address">
                         Flow Wallet Address
                       </Label>

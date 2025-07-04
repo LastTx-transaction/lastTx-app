@@ -7,6 +7,7 @@ export interface Beneficiary {
   address: string;
   percentage: number;
   name?: string;
+  email?: string; // Add email field
 }
 
 export interface WillDetails {
@@ -21,6 +22,15 @@ export interface WillDetails {
   createdAt: number;
 }
 
+export interface CreateWillParams {
+  beneficiaryAddress: string;
+  percentage: number;
+  inactivityDuration: number;
+  beneficiaryName?: string;
+  beneficiaryEmail?: string; // Add email parameter
+  personalMessage?: string;
+}
+
 export class LastTxService {
   // Create new inheritance will (single beneficiary)
   static async createWill(
@@ -29,6 +39,7 @@ export class LastTxService {
     inactivityDuration: number,
     beneficiaryName: string = '',
     personalMessage: string = '',
+    beneficiaryEmail: string = '', // Change to required string parameter
   ): Promise<string> {
     try {
       const transactionId = await fcl.mutate({
@@ -38,6 +49,7 @@ export class LastTxService {
           arg(percentage.toFixed(8), t.UFix64),
           arg(inactivityDuration.toFixed(8), t.UFix64),
           arg(beneficiaryName, t.String),
+          arg(beneficiaryEmail, t.String), // Add email to transaction args
           arg(personalMessage, t.String),
         ],
         proposer: fcl.currentUser,
@@ -87,6 +99,7 @@ export class LastTxService {
     beneficiaryAddress: string,
     beneficiaryPercentage: number,
     beneficiaryName: string = '',
+    beneficiaryEmail: string = '', // Add email parameter
     personalMessage: string = '',
   ): Promise<string> {
     try {
@@ -98,6 +111,7 @@ export class LastTxService {
           arg(beneficiaryAddress, t.Address),
           arg(beneficiaryPercentage.toFixed(8), t.UFix64),
           arg(beneficiaryName, t.String),
+          arg(beneficiaryEmail, t.String), // Add email to args
           arg(personalMessage, t.String),
         ],
         proposer: fcl.currentUser,
@@ -228,5 +242,46 @@ export class LastTxService {
       console.error('Error getting will details:', error);
       return null;
     }
+  }
+
+  /**
+   * Format time remaining in human-readable format
+   */
+  static formatTimeRemaining(seconds: number): string {
+    if (seconds <= 0) return 'EXPIRED';
+
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+
+    if (hours > 0) {
+      return `${hours} hour${hours > 1 ? 's' : ''} ${minutes} minute${
+        minutes > 1 ? 's' : ''
+      }`;
+    }
+
+    return `${minutes} minute${minutes > 1 ? 's' : ''}`;
+  }
+
+  /**
+   * Get expiry status for a specific will
+   */
+  static getExpiryStatus(
+    lastActivity: number,
+    inactivityDuration: number,
+  ): {
+    isExpired: boolean;
+    isExpiringSoon: boolean;
+    timeRemaining: number;
+    formattedTimeRemaining: string;
+  } {
+    const currentTime = Date.now() / 1000;
+    const timeRemaining = lastActivity + inactivityDuration - currentTime;
+
+    return {
+      isExpired: timeRemaining <= 0,
+      isExpiringSoon: timeRemaining > 0 && timeRemaining <= 86400, // 24 hours
+      timeRemaining: Math.max(0, timeRemaining),
+      formattedTimeRemaining: this.formatTimeRemaining(timeRemaining),
+    };
   }
 }

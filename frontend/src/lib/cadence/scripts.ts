@@ -136,3 +136,23 @@ access(all) fun main(account: Address): UFix64 {
     return vaultRef.balance
 }
 `;
+
+export const GET_USER_PROFILE = `
+import LastTx from 0xf8d6e0586b0a20c7
+
+access(all) fun main(userAddress: Address): {String: AnyStruct}? {
+    let cap = getAccount(userAddress).capabilities.get<&LastTx.Collection>(LastTx.LastTxPublicPath)
+    if let collection = cap.borrow() {
+        if let profile = collection.getUserProfile() {
+            return {
+                "owner": profile.owner,
+                "email": profile.email,
+                "name": profile.name,
+                "createdAt": profile.createdAt,
+                "updatedAt": profile.updatedAt
+            }
+        }
+    }
+    return nil
+}
+`;

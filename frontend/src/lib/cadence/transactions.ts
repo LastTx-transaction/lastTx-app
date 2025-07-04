@@ -10,6 +10,7 @@ transaction(
     percentage: UFix64,
     inactivityDuration: UFix64,
     beneficiaryName: String,
+    beneficiaryEmail: String,
     personalMessage: String
 ) {
     let collection: &LastTx.Collection
@@ -32,7 +33,8 @@ transaction(
         let beneficiary = LastTx.createBeneficiary(
             address: beneficiaryAddress,
             percentage: percentage,
-            name: beneficiaryName == "" ? nil : beneficiaryName
+            name: beneficiaryName == "" ? nil : beneficiaryName,
+            email: beneficiaryEmail == "" ? nil : beneficiaryEmail
         )
         let beneficiaries: [LastTx.Beneficiary] = [beneficiary]
         
@@ -89,6 +91,7 @@ transaction(
     beneficiaryAddress: Address,
     beneficiaryPercentage: UFix64,
     beneficiaryName: String,
+    beneficiaryEmail: String,
     personalMessage: String
 ) {
     
@@ -99,7 +102,8 @@ transaction(
         let beneficiary = LastTx.createBeneficiary(
             address: beneficiaryAddress,
             percentage: beneficiaryPercentage,
-            name: beneficiaryName == "" ? nil : beneficiaryName
+            name: beneficiaryName == "" ? nil : beneficiaryName,
+            email: beneficiaryEmail == "" ? nil : beneficiaryEmail
         )
         let beneficiaries: [LastTx.Beneficiary] = [beneficiary]
         
@@ -153,6 +157,35 @@ transaction(lastTxId: UInt64) {
         lastTxRef.sendActivityPulse()
         
         log("Activity pulse sent successfully for LastTx ID: ".concat(lastTxId.toString()))
+    }
+}
+`;
+
+export const SETUP_USER_PROFILE = `
+import LastTx from 0xf8d6e0586b0a20c7
+
+transaction(email: String?, name: String?) {
+    let collection: &LastTx.Collection
+    
+    prepare(signer: auth(Storage, Capabilities) &Account) {
+        // Ensure collection exists
+        if signer.storage.borrow<&LastTx.Collection>(from: LastTx.LastTxStoragePath) == nil {
+            signer.storage.save(<-LastTx.createEmptyCollection(), to: LastTx.LastTxStoragePath)
+            
+            let publicCap = signer.capabilities.storage.issue<&LastTx.Collection>(LastTx.LastTxStoragePath)
+            signer.capabilities.publish(publicCap, at: LastTx.LastTxPublicPath)
+        }
+        
+        self.collection = signer.storage.borrow<&LastTx.Collection>(from: LastTx.LastTxStoragePath)!
+    }
+    
+    execute {
+        self.collection.setUserProfile(
+            email: email,
+            name: name
+        )
+        
+        log("User profile updated successfully")
     }
 }
 `;
