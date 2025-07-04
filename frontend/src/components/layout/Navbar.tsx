@@ -4,14 +4,12 @@ import Link from 'next/link';
 import { Menu, X, Wallet, Settings, Coins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCurrentFlowUser } from '@onflow/kit';
-import { useFlowBalance } from '@/lib/hooks/useFlowBalance';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, authenticate, unauthenticate } = useCurrentFlowUser();
-  const { balance, loading: balanceLoading } = useFlowBalance(
-    user?.addr || null,
-  );
+  const { user: authUser, balanceLoading } = useAuth();
 
   return (
     <nav className="bg-card border-b border-border sticky top-0 z-50 backdrop-blur-sm">
@@ -76,7 +74,7 @@ export default function Navbar() {
                 <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-lg">
                   <Coins className="h-4 w-4 text-primary" />
                   <span className="text-sm font-medium">
-                    {balanceLoading ? '...' : balance} FLOW
+                    {balanceLoading ? '...' : authUser.balance} FLOW
                   </span>
                 </div>
 
@@ -168,7 +166,7 @@ export default function Navbar() {
                   <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 rounded-lg">
                     <Coins className="h-4 w-4 text-primary" />
                     <span className="text-sm font-medium">
-                      {balanceLoading ? '...' : balance} FLOW
+                      {balanceLoading ? '...' : authUser.balance} FLOW
                     </span>
                   </div>
 
