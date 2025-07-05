@@ -1,29 +1,28 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useLastTx } from '@/lib/hooks/useLastTx';
-import { useAuth } from '@/lib/hooks/useAuth';
-import { AuthRequired } from '@/components/auth/AuthButton';
-import { LastTxService } from '@/lib/lasttx-service';
-import { Button } from '@/components/ui/button';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useLastTx } from "@/lib/hooks/useLastTx";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { AuthRequired } from "@/components/auth/AuthButton";
+import { LastTxService } from "@/lib/lasttx-service";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   ConfirmDialog,
   NotificationDialog,
-} from '@/components/ui/confirm-dialog';
-import { ContractInfoDialog } from '@/components/ui/contract-info-dialog';
+} from "@/components/ui/confirm-dialog";
+import { ContractInfoDialog } from "@/components/ui/contract-info-dialog";
 import {
   Shield,
   Users,
-  ExternalLink,
   Clock,
   CheckCircle,
   AlertTriangle,
@@ -31,19 +30,12 @@ import {
   Edit,
   Trash2,
   Plus,
-} from 'lucide-react';
+} from "lucide-react";
 
 export default function MyWillsPage() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();
-  const {
-    lastTxs,
-    loading,
-    setupAccount,
-    accountSetup,
-    refresh,
-    deleteLastTx,
-  } = useLastTx();
+  const { lastTxs, loading, refresh, deleteLastTx } = useLastTx();
   const [isClient, setIsClient] = useState(false);
 
   // Dialog states
@@ -63,14 +55,14 @@ export default function MyWillsPage() {
   });
   const [notification, setNotification] = useState<{
     open: boolean;
-    type: 'success' | 'error';
+    type: "success" | "error";
     title: string;
     description: string;
   }>({
     open: false,
-    type: 'success',
-    title: '',
-    description: '',
+    type: "success",
+    title: "",
+    description: "",
   });
   const [dialogLoading, setDialogLoading] = useState(false);
 
@@ -85,28 +77,28 @@ export default function MyWillsPage() {
       Math.floor(
         (lastTx.inactivityDuration -
           (Date.now() / 1000 - lastTx.lastActivity)) /
-          (24 * 60 * 60),
-      ),
+          (24 * 60 * 60)
+      )
     );
 
-    let status = 'active';
-    if (!lastTx.isActive) status = 'inactive';
-    else if (lastTx.isExpired) status = 'triggered';
-    else if (daysUntilTrigger <= 30) status = 'warning';
+    let status = "active";
+    if (!lastTx.isActive) status = "inactive";
+    else if (lastTx.isExpired) status = "triggered";
+    else if (daysUntilTrigger <= 30) status = "warning";
 
     return {
       id: lastTx.id,
-      beneficiaryName: lastTx.beneficiaries[0]?.name ?? 'Unknown Beneficiary',
-      beneficiaryAddress: lastTx.beneficiaries[0]?.address ?? '',
+      beneficiaryName: lastTx.beneficiaries[0]?.name ?? "Unknown Beneficiary",
+      beneficiaryAddress: lastTx.beneficiaries[0]?.address ?? "",
       percentage: lastTx.beneficiaries[0]?.percentage ?? 100,
       inactivityPeriod: Math.floor(lastTx.inactivityDuration / (24 * 60 * 60)),
       lastActivity: new Date(lastTx.lastActivity * 1000)
         .toISOString()
-        .split('T')[0],
+        .split("T")[0],
       status,
-      token: 'FLOW',
+      token: "FLOW",
       daysUntilTrigger,
-      contractAddress: `${user?.addr ?? ''}...${lastTx.id.slice(-6)}`,
+      contractAddress: `${user?.addr ?? ""}...${lastTx.id.slice(-6)}`,
       rawData: lastTx,
     };
   });
@@ -116,7 +108,7 @@ export default function MyWillsPage() {
 
     setDialogLoading(true);
     try {
-      if (ruleId === 'all') {
+      if (ruleId === "all") {
         // Refresh all contracts by sending a pulse to each
         for (const rule of inheritanceRules) {
           await LastTxService.sendActivityPulse(rule.id);
@@ -124,27 +116,27 @@ export default function MyWillsPage() {
         refresh();
         setNotification({
           open: true,
-          type: 'success',
-          title: 'Success!',
-          description: 'All timers refreshed successfully!',
+          type: "success",
+          title: "Success!",
+          description: "All timers refreshed successfully!",
         });
       } else {
         await LastTxService.sendActivityPulse(ruleId);
         refresh();
         setNotification({
           open: true,
-          type: 'success',
-          title: 'Success!',
-          description: 'Timer refreshed successfully!',
+          type: "success",
+          title: "Success!",
+          description: "Timer refreshed successfully!",
         });
       }
     } catch (error) {
-      console.error('Error refreshing activity:', error);
+      console.error("Error refreshing activity:", error);
       setNotification({
         open: true,
-        type: 'error',
-        title: 'Error',
-        description: 'Failed to refresh timer. Please try again.',
+        type: "error",
+        title: "Error",
+        description: "Failed to refresh timer. Please try again.",
       });
     } finally {
       setDialogLoading(false);
@@ -170,21 +162,21 @@ export default function MyWillsPage() {
       if (success) {
         setNotification({
           open: true,
-          type: 'success',
-          title: 'Success!',
-          description: 'Inheritance rule deleted successfully!',
+          type: "success",
+          title: "Success!",
+          description: "Inheritance rule deleted successfully!",
         });
         refresh(); // Refresh the list to remove the deleted item
       } else {
-        throw new Error('Delete operation failed');
+        throw new Error("Delete operation failed");
       }
     } catch (error) {
-      console.error('Error deleting rule:', error);
+      console.error("Error deleting rule:", error);
       setNotification({
         open: true,
-        type: 'error',
-        title: 'Error',
-        description: 'Failed to delete rule. Please try again.',
+        type: "error",
+        title: "Error",
+        description: "Failed to delete rule. Please try again.",
       });
     } finally {
       setDialogLoading(false);
@@ -203,7 +195,7 @@ export default function MyWillsPage() {
 
   const getStatusBadge = (status: string, daysUntilTrigger: number) => {
     switch (status) {
-      case 'active':
+      case "active":
         return (
           <Badge
             variant="default"
@@ -213,7 +205,7 @@ export default function MyWillsPage() {
             Active ({daysUntilTrigger} days left)
           </Badge>
         );
-      case 'warning':
+      case "warning":
         return (
           <Badge
             variant="default"
@@ -223,7 +215,7 @@ export default function MyWillsPage() {
             Warning ({daysUntilTrigger} days left)
           </Badge>
         );
-      case 'triggered':
+      case "triggered":
         return (
           <Badge
             variant="secondary"
@@ -239,17 +231,17 @@ export default function MyWillsPage() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      timeZone: 'UTC',
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      timeZone: "UTC",
     });
   };
 
   const getTotalPercentage = () => {
     return inheritanceRules
-      .filter((rule) => rule.status !== 'triggered')
+      .filter((rule) => rule.status !== "triggered")
       .reduce((total, rule) => total + rule.percentage, 0);
   };
 
@@ -268,16 +260,16 @@ export default function MyWillsPage() {
     // Determine the correct Flowscan URL based on network
     // For emulator/testnet, we'll show internal dialog
     // For mainnet, we'll open Flowscan
-    const isMainnet = user.addr.startsWith('0x') && user.addr.length === 18;
+    const isMainnet = user.addr.startsWith("0x") && user.addr.length === 18;
 
     if (isMainnet) {
       // Open Flowscan for mainnet
       const flowscanUrl = `https://www.flowscan.io/account/${user.addr}`;
-      window.open(flowscanUrl, '_blank');
+      window.open(flowscanUrl, "_blank");
     } else {
       // Show internal dialog for emulator/testnet
       const contractData = inheritanceRules.find(
-        (rule) => rule.id === lastTxId,
+        (rule) => rule.id === lastTxId
       );
       if (contractData) {
         setContractDialog({
@@ -301,31 +293,6 @@ export default function MyWillsPage() {
                   <div className="h-4 bg-muted rounded w-96 mx-auto"></div>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      </AuthRequired>
-    );
-  }
-
-  // Show setup required state
-  if (!accountSetup) {
-    return (
-      <AuthRequired>
-        <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-          <div className="container mx-auto px-4 py-24">
-            <div className="max-w-4xl mx-auto">
-              <Card className="border-primary/10">
-                <CardContent className="text-center py-12">
-                  <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Setup Required</h3>
-                  <p className="text-muted-foreground mb-6">
-                    You need to setup your account before creating inheritance
-                    rules
-                  </p>
-                  <Button onClick={setupAccount}>Setup Account</Button>
-                </CardContent>
-              </Card>
             </div>
           </div>
         </div>
@@ -357,7 +324,7 @@ export default function MyWillsPage() {
                     <div>
                       <p className="text-2xl font-bold">
                         {
-                          inheritanceRules.filter((r) => r.status === 'active')
+                          inheritanceRules.filter((r) => r.status === "active")
                             .length
                         }
                       </p>
@@ -375,7 +342,7 @@ export default function MyWillsPage() {
                     <div>
                       <p className="text-2xl font-bold">
                         {
-                          inheritanceRules.filter((r) => r.status === 'warning')
+                          inheritanceRules.filter((r) => r.status === "warning")
                             .length
                         }
                       </p>
@@ -394,7 +361,7 @@ export default function MyWillsPage() {
                       <p className="text-2xl font-bold">
                         {
                           inheritanceRules.filter(
-                            (r) => r.status === 'triggered',
+                            (r) => r.status === "triggered"
                           ).length
                         }
                       </p>
@@ -429,11 +396,11 @@ export default function MyWillsPage() {
                       Activity Status
                     </h3>
                     <p className="text-muted-foreground">
-                      Last wallet activity:{' '}
+                      Last wallet activity:{" "}
                       <span className="font-medium">
                         {inheritanceRules.length > 0
                           ? formatDate(inheritanceRules[0].lastActivity)
-                          : 'No activity'}
+                          : "No activity"}
                       </span>
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
@@ -441,7 +408,7 @@ export default function MyWillsPage() {
                     </p>
                   </div>
                   <Button
-                    onClick={() => triggerRefreshDialog('all')}
+                    onClick={() => triggerRefreshDialog("all")}
                     className="group"
                     disabled={inheritanceRules.length === 0}
                   >
@@ -474,11 +441,11 @@ export default function MyWillsPage() {
                 inheritanceRules.map((rule) => {
                   const getCardClassName = () => {
                     let className =
-                      'border-primary/10 hover:shadow-lg transition-shadow';
-                    if (rule.status === 'warning') {
-                      className += ' border-amber-300 bg-amber-50/30';
-                    } else if (rule.status === 'triggered') {
-                      className += ' border-red-300 bg-red-50/30';
+                      "border-primary/10 hover:shadow-lg transition-shadow";
+                    if (rule.status === "warning") {
+                      className += " border-amber-300 bg-amber-50/30";
+                    } else if (rule.status === "triggered") {
+                      className += " border-red-300 bg-red-50/30";
                     }
                     return className;
                   };
@@ -556,14 +523,14 @@ export default function MyWillsPage() {
                               <p
                                 className={`text-lg font-bold ${(() => {
                                   if (rule.daysUntilTrigger > 30)
-                                    return 'text-green-600';
+                                    return "text-green-600";
                                   if (rule.daysUntilTrigger > 7)
-                                    return 'text-amber-600';
-                                  return 'text-red-600';
+                                    return "text-amber-600";
+                                  return "text-red-600";
                                 })()}`}
                               >
-                                {rule.status === 'triggered'
-                                  ? 'Triggered'
+                                {rule.status === "triggered"
+                                  ? "Triggered"
                                   : `${rule.daysUntilTrigger} days`}
                               </p>
                             </div>
@@ -586,7 +553,7 @@ export default function MyWillsPage() {
                               <ExternalLink className="h-4 w-4 mr-2" />
                               View Contract
                             </Button> */}
-                            {rule.status !== 'triggered' && (
+                            {rule.status !== "triggered" && (
                               <>
                                 <Button
                                   variant="outline"
@@ -607,7 +574,7 @@ export default function MyWillsPage() {
                               </>
                             )}
                           </div>
-                          {rule.status !== 'triggered' && (
+                          {rule.status !== "triggered" && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -658,9 +625,9 @@ export default function MyWillsPage() {
         onOpenChange={(open) => setRefreshDialog({ open, ruleId: null })}
         title="Refresh Activity Timer"
         description={
-          refreshDialog.ruleId === 'all'
-            ? 'This will reset the activity timer for all your inheritance rules. Are you sure you want to continue?'
-            : 'This will reset the activity timer for this inheritance rule. Are you sure you want to continue?'
+          refreshDialog.ruleId === "all"
+            ? "This will reset the activity timer for all your inheritance rules. Are you sure you want to continue?"
+            : "This will reset the activity timer for this inheritance rule. Are you sure you want to continue?"
         }
         confirmText="Refresh Timer"
         cancelText="Cancel"

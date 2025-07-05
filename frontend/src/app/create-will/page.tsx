@@ -1,29 +1,29 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useLastTx } from '@/lib/hooks/useLastTx';
-import { AuthRequired } from '@/components/auth/AuthButton';
-import { Button } from '@/components/ui/button';
-import { NotificationDialog } from '@/components/ui/confirm-dialog';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useLastTx } from "@/lib/hooks/useLastTx";
+import { AuthRequired } from "@/components/auth/AuthButton";
+import { Button } from "@/components/ui/button";
+import { NotificationDialog } from "@/components/ui/confirm-dialog";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Shield, Clock } from 'lucide-react';
+} from "@/components/ui/select";
+import { Shield, Clock } from "lucide-react";
 
 interface InheritanceRule {
   beneficiaryAddress: string;
@@ -36,27 +36,27 @@ interface InheritanceRule {
 
 export default function CreateWillPage() {
   const router = useRouter();
-  const { createLastTx, loading, accountSetup, setupAccount } = useLastTx();
+  const { createLastTx, loading } = useLastTx();
 
   const [rule, setRule] = useState<InheritanceRule>({
-    beneficiaryAddress: '',
-    beneficiaryName: '',
+    beneficiaryAddress: "",
+    beneficiaryName: "",
     percentage: 0,
     inactivityPeriod: 365,
-    token: 'FLOW',
-    message: '',
+    token: "FLOW",
+    message: "",
   });
 
   const [notification, setNotification] = useState<{
     open: boolean;
-    type: 'success' | 'error';
+    type: "success" | "error";
     title: string;
     description: string;
   }>({
     open: false,
-    type: 'success',
-    title: '',
-    description: '',
+    type: "success",
+    title: "",
+    description: "",
   });
 
   const updateRule = (field: keyof InheritanceRule, value: string | number) => {
@@ -69,9 +69,9 @@ export default function CreateWillPage() {
     if (rule.percentage === 0) {
       setNotification({
         open: true,
-        type: 'error',
-        title: 'Validation Error',
-        description: 'Please set a percentage for the inheritance rule.',
+        type: "error",
+        title: "Validation Error",
+        description: "Please set a percentage for the inheritance rule.",
       });
       return;
     }
@@ -79,9 +79,9 @@ export default function CreateWillPage() {
     if (!rule.beneficiaryAddress || !rule.beneficiaryName) {
       setNotification({
         open: true,
-        type: 'error',
-        title: 'Missing Information',
-        description: 'Please fill in all required fields.',
+        type: "error",
+        title: "Missing Information",
+        description: "Please fill in all required fields.",
       });
       return;
     }
@@ -103,67 +103,40 @@ export default function CreateWillPage() {
       const success = await createLastTx(
         inactivityDurationSeconds,
         beneficiaries,
-        rule.message, // Pass personal message to blockchain
+        rule.message // Pass personal message to blockchain
       );
 
       if (success) {
         setNotification({
           open: true,
-          type: 'success',
-          title: 'Success!',
-          description: 'Inheritance contract created successfully!',
+          type: "success",
+          title: "Success!",
+          description: "Inheritance contract created successfully!",
         });
         // Delay navigation to show the success message
         setTimeout(() => {
-          router.push('/my-wills');
+          router.push("/my-wills");
         }, 2000);
       } else {
         setNotification({
           open: true,
-          type: 'error',
-          title: 'Creation Failed',
+          type: "error",
+          title: "Creation Failed",
           description:
-            'Failed to create inheritance contract. Please try again.',
+            "Failed to create inheritance contract. Please try again.",
         });
       }
     } catch (error) {
-      console.error('Error creating LastTx:', error);
+      console.error("Error creating LastTx:", error);
       setNotification({
         open: true,
-        type: 'error',
-        title: 'Error',
+        type: "error",
+        title: "Error",
         description:
-          'An error occurred while creating the inheritance contract.',
+          "An error occurred while creating the inheritance contract.",
       });
     }
   };
-
-  // Show setup required state
-  if (!accountSetup) {
-    return (
-      <AuthRequired>
-        <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-          <div className="container mx-auto px-4 py-24">
-            <div className="max-w-4xl mx-auto">
-              <Card className="border-primary/10">
-                <CardContent className="text-center py-12">
-                  <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Setup Required</h3>
-                  <p className="text-muted-foreground mb-6">
-                    You need to setup your account before creating inheritance
-                    rules
-                  </p>
-                  <Button onClick={setupAccount} disabled={loading}>
-                    {loading ? 'Setting up...' : 'Setup Account'}
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-      </AuthRequired>
-    );
-  }
 
   return (
     <AuthRequired>
@@ -204,7 +177,7 @@ export default function CreateWillPage() {
                         placeholder="e.g., John Doe"
                         value={rule.beneficiaryName}
                         onChange={(e) =>
-                          updateRule('beneficiaryName', e.target.value)
+                          updateRule("beneficiaryName", e.target.value)
                         }
                         required
                       />
@@ -220,7 +193,7 @@ export default function CreateWillPage() {
                         placeholder="0x... (Flow wallet address)"
                         value={rule.beneficiaryAddress}
                         onChange={(e) =>
-                          updateRule('beneficiaryAddress', e.target.value)
+                          updateRule("beneficiaryAddress", e.target.value)
                         }
                         required
                       />
@@ -235,11 +208,11 @@ export default function CreateWillPage() {
                         min="1"
                         max="100"
                         placeholder="100"
-                        value={rule.percentage || ''}
+                        value={rule.percentage || ""}
                         onChange={(e) =>
                           updateRule(
-                            'percentage',
-                            parseInt(e.target.value) || 0,
+                            "percentage",
+                            parseInt(e.target.value) || 0
                           )
                         }
                         required
@@ -257,7 +230,7 @@ export default function CreateWillPage() {
                       <Select
                         value={rule.inactivityPeriod.toString()}
                         onValueChange={(value) =>
-                          updateRule('inactivityPeriod', parseInt(value))
+                          updateRule("inactivityPeriod", parseInt(value))
                         }
                       >
                         <SelectTrigger>
@@ -292,7 +265,7 @@ export default function CreateWillPage() {
                         id="personal-message"
                         placeholder="Leave a personal message for the beneficiary..."
                         value={rule.message}
-                        onChange={(e) => updateRule('message', e.target.value)}
+                        onChange={(e) => updateRule("message", e.target.value)}
                         rows={3}
                       />
                     </div>
@@ -306,8 +279,8 @@ export default function CreateWillPage() {
                     disabled={rule.percentage === 0 || loading}
                   >
                     {loading
-                      ? 'Creating Contract...'
-                      : 'Create Inheritance Contract'}
+                      ? "Creating Contract..."
+                      : "Create Inheritance Contract"}
                   </Button>
                 </form>
               </CardContent>
