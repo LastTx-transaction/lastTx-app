@@ -1,10 +1,8 @@
 // import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 // import { createClient } from "jsr:@supabase/supabase-js@2";
-
 // const SENDGRID_API_KEY = Deno.env.get("SENDGRID_API_KEY");
 // const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 // const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
 // Deno.serve(async (req) => {
 //   try {
 //     // Only allow POST requests
@@ -13,10 +11,8 @@
 //         status: 405,
 //       });
 //     }
-
 //     // Parse the request body
 //     const body = await req.json();
-
 //     // Validate required fields
 //     if (!body.id) {
 //       return new Response(
@@ -31,10 +27,8 @@
 //         }
 //       );
 //     }
-
 //     // Initialize Supabase client
-//     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
-
+//     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 //     // Search for will information in database
 //     const { data: will, error: willError } = await supabase
 //       .from("wills")
@@ -42,7 +36,6 @@
 //       .eq("smart_contract_id", body.id)
 //       .eq("status", "active")
 //       .single();
-
 //     if (willError || !will) {
 //       return new Response(
 //         JSON.stringify({
@@ -57,120 +50,292 @@
 //         }
 //       );
 //     }
-
 //     // Create beautiful HTML email template
 //     const htmlContent = `
-//       <!DOCTYPE html>
-//       <html lang="en">
-//       <head>
-//         <meta charset="UTF-8">
-//         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-//         <title>You've Received an Inheritance</title>
-//         <style>
-//           body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f8fafc; }
-//           .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
-//           .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 30px; text-align: center; }
-//           .header h1 { margin: 0; font-size: 28px; font-weight: 300; }
-//           .gift-icon { font-size: 48px; margin-bottom: 10px; }
-//           .content { padding: 40px 30px; }
-//           .highlight-box { background-color: #f1f5f9; border-left: 4px solid #667eea; padding: 20px; margin: 25px 0; border-radius: 4px; }
-//           .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; }
-//           .detail-item { background-color: #f8fafc; padding: 15px; border-radius: 8px; }
-//           .detail-label { font-weight: 600; color: #475569; font-size: 14px; margin-bottom: 5px; }
-//           .detail-value { color: #1e293b; font-size: 16px; }
-//           .claim-button { display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 20px 0; transition: transform 0.2s; }
-//           .claim-button:hover { transform: translateY(-2px); }
-//           .message-box { background-color: #fef3c7; border: 1px solid #f59e0b; padding: 20px; border-radius: 8px; margin: 20px 0; }
-//           .footer { background-color: #f1f5f9; padding: 20px 30px; text-align: center; color: #64748b; font-size: 14px; }
-//         </style>
-//       </head>
-//       <body>
-//         <div class="container">
-//           <div class="header">
-//             <div class="gift-icon">🎁</div>
-//             <h1>You've Received an Inheritance!</h1>
-//             <p style="margin: 10px 0 0 0; opacity: 0.9;">A digital inheritance has been transferred to you</p>
+// <!DOCTYPE html>
+// <html lang="en">
+// <head>
+//   <meta charset="UTF-8">
+//   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+//   <title>Digital Inheritance Notification</title>
+//   <style>
+//     * { margin: 0; padding: 0; box-sizing: border-box; }
+//     body {
+//       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+//       background-color: #f8f9fa;
+//       padding: 20px;
+//       line-height: 1.6;
+//     }
+//     .container {
+//       max-width: 600px;
+//       margin: 0 auto;
+//       background: #ffffff;
+//       border-radius: 12px;
+//       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+//       overflow: hidden;
+//     }
+//     .header {
+//       background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+//       padding: 40px 40px 30px;
+//       text-align: center;
+//       border-bottom: 3px solid #22c55e;
+//     }
+//     .header h1 {
+//       color: #1f2937;
+//       font-size: 28px;
+//       font-weight: 700;
+//       margin-bottom: 8px;
+//       letter-spacing: -0.5px;
+//     }
+//     .header p {
+//       color: #6b7280;
+//       font-size: 16px;
+//       margin: 0;
+//     }
+//     .content {
+//       padding: 40px;
+//       background: #ffffff;
+//     }
+//     .greeting {
+//       font-size: 18px;
+//       color: #1f2937;
+//       margin-bottom: 20px;
+//       font-weight: 500;
+//     }
+//     .intro-text {
+//       font-size: 16px;
+//       color: #4b5563;
+//       margin-bottom: 30px;
+//       line-height: 1.7;
+//     }
+//     .details-section {
+//       background: #f9fafb;
+//       border: 1px solid #e5e7eb;
+//       border-radius: 8px;
+//       padding: 24px;
+//       margin: 24px 0;
+//     }
+//     .details-section h3 {
+//       color: #1f2937;
+//       margin-bottom: 16px;
+//       font-size: 18px;
+//       font-weight: 600;
+//     }
+//     .details-grid {
+//       display: grid;
+//       grid-template-columns: 1fr 1fr;
+//       gap: 16px;
+//     }
+//     .detail-item {
+//       background: #ffffff;
+//       padding: 16px;
+//       border-radius: 6px;
+//       border: 1px solid #e5e7eb;
+//     }
+//     .detail-label {
+//       font-weight: 600;
+//       color: #22c55e;
+//       font-size: 12px;
+//       margin-bottom: 4px;
+//       text-transform: uppercase;
+//       letter-spacing: 0.5px;
+//     }
+//     .detail-value {
+//       color: #1f2937;
+//       font-size: 15px;
+//       font-weight: 500;
+//       word-break: break-word;
+//     }
+//     .message-section {
+//       background: #fefce8;
+//       border: 1px solid #eab308;
+//       border-left: 4px solid #eab308;
+//       padding: 20px;
+//       border-radius: 6px;
+//       margin: 24px 0;
+//     }
+//     .message-section h4 {
+//       color: #a16207;
+//       margin-bottom: 12px;
+//       font-size: 16px;
+//       font-weight: 600;
+//     }
+//     .message-text {
+//       color: #1f2937;
+//       font-style: italic;
+//       font-size: 15px;
+//       line-height: 1.6;
+//     }
+//     .button-section {
+//       text-align: center;
+//       margin: 32px 0;
+//     }
+//     .claim-button {
+//       display: inline-block;
+//       background: #22c55e;
+//       color: #ffffff !important;
+//       padding: 14px 32px;
+//       text-decoration: none;
+//       border-radius: 6px;
+//       font-weight: 600;
+//       font-size: 16px;
+//       transition: background-color 0.2s;
+//     }
+//     .claim-button:hover {
+//       background: #16a34a;
+//     }
+//     .steps-section {
+//       background: #f0f9ff;
+//       border: 1px solid #0ea5e9;
+//       border-left: 4px solid #0ea5e9;
+//       padding: 20px;
+//       border-radius: 6px;
+//       margin: 24px 0;
+//     }
+//     .steps-section h4 {
+//       color: #0369a1;
+//       margin-bottom: 12px;
+//       font-size: 16px;
+//       font-weight: 600;
+//     }
+//     .steps-section ol {
+//       color: #374151;
+//       font-size: 14px;
+//       line-height: 1.6;
+//       padding-left: 18px;
+//     }
+//     .steps-section li {
+//       margin-bottom: 6px;
+//     }
+//     .contract-code {
+//       background: #f3f4f6;
+//       padding: 4px 8px;
+//       border-radius: 4px;
+//       font-family: 'Monaco', 'Consolas', monospace;
+//       font-size: 12px;
+//       color: #1f2937;
+//       border: 1px solid #d1d5db;
+//     }
+//     .footer-note {
+//       margin-top: 32px;
+//       padding: 16px;
+//       background: #f9fafb;
+//       border-radius: 6px;
+//       border: 1px solid #e5e7eb;
+//       font-size: 13px;
+//       color: #6b7280;
+//       text-align: center;
+//       line-height: 1.5;
+//     }
+//     .footer {
+//       background: #f9fafb;
+//       padding: 24px 40px;
+//       text-align: center;
+//       border-top: 1px solid #e5e7eb;
+//     }
+//     .footer p {
+//       color: #6b7280;
+//       font-size: 13px;
+//       margin: 4px 0;
+//     }
+//     .footer .brand {
+//       color: #22c55e;
+//       font-weight: 600;
+//     }
+//     @media (max-width: 600px) {
+//       .container { margin: 10px; }
+//       .header, .content { padding: 24px 20px; }
+//       .details-grid { grid-template-columns: 1fr; }
+//       .claim-button { padding: 12px 24px; font-size: 15px; }
+//     }
+//   </style>
+// </head>
+// <body>
+//   <div class="container">
+//     <div class="header">
+//       <h1>Digital Inheritance Notification</h1>
+//       <p>You have been named as a beneficiary</p>
+//     </div>
+
+//     <div class="content">
+//       <div class="greeting">Dear ${will.recipient_name},</div>
+
+//       <div class="intro-text">
+//         You have been named as a beneficiary in a digital inheritance will.
+//         ${
+//           will.owner_name ? `${will.owner_name}` : "Someone"
+//         } has designated you to receive a portion of their digital assets.
+//       </div>
+
+//       <div class="details-section">
+//         <h3>Inheritance Details</h3>
+//         <div class="details-grid">
+//           <div class="detail-item">
+//             <div class="detail-label">From</div>
+//             <div class="detail-value">${will.owner_name || "Anonymous"}</div>
 //           </div>
-
-//           <div class="content">
-//             <p>Dear <strong>${will.recipient_name}</strong>,</p>
-
-//             <p>You have been named as a beneficiary in a digital inheritance will. ${
-//               will.owner_name
-//                 ? `<strong>${will.owner_name}</strong>`
-//                 : "Someone"
-//             } has left you a portion of their digital assets.</p>
-
-//             <div class="highlight-box">
-//               <h3 style="margin-top: 0; color: #1e293b;">📋 Inheritance Details</h3>
-//               <div class="details-grid">
-//                 <div class="detail-item">
-//                   <div class="detail-label">From</div>
-//                   <div class="detail-value">${
-//                     will.owner_name || "Anonymous"
-//                   }</div>
-//                 </div>
-//                 <div class="detail-item">
-//                   <div class="detail-label">Percentage</div>
-//                   <div class="detail-value">${will.percentage_of_money}%</div>
-//                 </div>
-//                 <div class="detail-item">
-//                   <div class="detail-label">Contract ID</div>
-//                   <div class="detail-value" style="font-family: monospace; font-size: 14px;">${
-//                     will.smart_contract_id
-//                   }</div>
-//                 </div>
-//                 <div class="detail-item">
-//                   <div class="detail-label">Your Email</div>
-//                   <div class="detail-value">${will.recipient_email}</div>
-//                 </div>
-//               </div>
-//             </div>
-
-//             ${
-//               will.message
-//                 ? `
-//             <div class="message-box">
-//               <h4 style="margin-top: 0; color: #92400e;">💌 Personal Message</h4>
-//               <p style="margin-bottom: 0; font-style: italic; color: #1f2937;">"${will.message}"</p>
-//             </div>
-//             `
-//                 : ""
-//             }
-
-//             <div style="text-align: center; margin: 30px 0;">
-//               <a href="http://localhost:3000/claim-will" class="claim-button">
-//                 🔗 Claim Your Inheritance
-//               </a>
-//             </div>
-
-//             <div style="background-color: #e0f2fe; padding: 20px; border-radius: 8px; border-left: 4px solid #0284c7;">
-//               <h4 style="margin-top: 0; color: #0c4a6e;">🛡️ Next Steps</h4>
-//               <ol style="margin-bottom: 0; color: #374151;">
-//                 <li>Click the "Claim Your Inheritance" button above</li>
-//                 <li>Connect your digital wallet</li>
-//                 <li>Use the Contract ID: <code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">${
-//                   will.smart_contract_id
-//                 }</code></li>
-//                 <li>Follow the instructions to claim your assets</li>
-//               </ol>
-//             </div>
-
-//             <p style="margin-top: 30px; color: #64748b; font-size: 14px;">
-//               This inheritance was automatically triggered by the LastTx platform when the specified conditions were met.
-//               If you have any questions, please contact our support team.
-//             </p>
+//           <div class="detail-item">
+//             <div class="detail-label">Allocation</div>
+//             <div class="detail-value">${will.percentage_of_money}%</div>
 //           </div>
-
-//           <div class="footer">
-//             <p style="margin: 0;">This message was sent by the <strong>LastTx</strong> inheritance platform</p>
-//             <p style="margin: 5px 0 0 0;">Secure • Automated • Blockchain-powered</p>
+//           <div class="detail-item">
+//             <div class="detail-label">Contract ID</div>
+//             <div class="detail-value" style="font-family: Monaco, Consolas, monospace; font-size: 13px;">${
+//               will.smart_contract_id
+//             }</div>
+//           </div>
+//           <div class="detail-item">
+//             <div class="detail-label">Recipient</div>
+//             <div class="detail-value">${will.recipient_email}</div>
 //           </div>
 //         </div>
-//       </body>
-//       </html>
-//     `;
+//       </div>
 
+//       ${
+//         will.message
+//           ? `
+//       <div class="message-section">
+//         <h4>Personal Message</h4>
+//         <div class="message-text">${will.message}</div>
+//       </div>
+//       `
+//           : ""
+//       }
+
+//       <div class="button-section">
+//         <a href="http://localhost:3000/claim-will/${will.owner_address}/${
+//       will.will_id
+//     }" class="claim-button">
+//           Claim Your Inheritance
+//         </a>
+//       </div>
+
+//       <div class="steps-section">
+//         <h4>How to Claim</h4>
+//         <ol>
+//           <li>Click the "Claim Your Inheritance" button above</li>
+//           <li>Connect your digital wallet</li>
+//           <li>Use Contract ID: <span class="contract-code">${
+//             will.smart_contract_id
+//           }</span></li>
+//           <li>Follow the on-screen instructions to complete the claim</li>
+//         </ol>
+//       </div>
+
+//       <div class="footer-note">
+//         This inheritance was automatically triggered by the LastTx platform when the specified conditions were met.
+//         If you have any questions, please contact our support team.
+//       </div>
+//     </div>
+
+//     <div class="footer">
+//       <p>This message was sent by the <span class="brand">LastTx</span> inheritance platform</p>
+//       <p>Secure • Automated • Blockchain-powered</p>
+//     </div>
+//   </div>
+// </body>
+// </html>
+// `;
 //     // Prepare SendGrid request payload
 //     const sendgridPayload = {
 //       personalizations: [
@@ -187,9 +352,7 @@
 //         email: "m.azzam.azis@gmail.com",
 //         name: "LastTx Inheritance Platform",
 //       },
-//       subject: `🎁 You've received an inheritance from ${
-//         will.owner_name || "someone"
-//       }!`,
+//       subject: `Flow Wallet Inheritance from ${will.owner_name || "someone"}!`,
 //       content: [
 //         {
 //           type: "text/html",
@@ -197,7 +360,6 @@
 //         },
 //       ],
 //     };
-
 //     // Send email via SendGrid API
 //     const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
 //       method: "POST",
@@ -207,7 +369,6 @@
 //       },
 //       body: JSON.stringify(sendgridPayload),
 //     });
-
 //     // Handle SendGrid API response
 //     if (response.ok) {
 //       // Update will status to executed
@@ -218,7 +379,6 @@
 //           executed_at: new Date().toISOString(),
 //         })
 //         .eq("smart_contract_id", body.id);
-
 //       return new Response(
 //         JSON.stringify({
 //           success: true,
@@ -235,7 +395,6 @@
 //       );
 //     } else {
 //       const errorText = await response.text();
-
 //       // Update will status to failed
 //       await supabase
 //         .from("wills")
@@ -244,7 +403,6 @@
 //           executed_at: new Date().toISOString(),
 //         })
 //         .eq("smart_contract_id", body.id);
-
 //       return new Response(
 //         JSON.stringify({
 //           success: false,

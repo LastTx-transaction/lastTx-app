@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { AuthRequired } from '@/components/auth/AuthButton';
 import { Button } from '@/components/ui/button';
@@ -52,9 +52,9 @@ interface BeneficiaryData {
   email?: string;
 }
 
-export default function ClaimPage() {
+export default function ClaimWillPage() {
   const { user, isAuthenticated } = useAuth();
-  const searchParams = useSearchParams();
+  const params = useParams();
 
   const [willDetails, setWillDetails] = useState<WillDetails | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -64,9 +64,9 @@ export default function ClaimPage() {
     text: string;
   } | null>(null);
 
-  // Get parameters from URL
-  const ownerAddress = searchParams.get('owner');
-  const willId = searchParams.get('id');
+  // Get parameters from URL params
+  const ownerAddress = params.ownerId as string;
+  const willId = params.willId as string;
 
   // Fetch will details
   useEffect(() => {
@@ -265,6 +265,9 @@ export default function ClaimPage() {
               </h1>
               <p className="text-xl text-muted-foreground">
                 You have been invited to claim an inheritance
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Owner: {ownerAddress} • Will ID: {willId}
               </p>
             </div>
 

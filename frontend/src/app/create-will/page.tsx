@@ -24,17 +24,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Shield, Clock, Mail } from 'lucide-react';
+import { Shield, Clock } from 'lucide-react';
 import { UserProfileService } from '@/lib/services/user-profile.service';
+import { LastTxService } from '@/lib/lasttx-service';
 
 interface InheritanceRule {
   beneficiaryAddress: string;
   beneficiaryName: string;
   beneficiaryEmail: string;
   percentage: number;
-  inactivityPeriod: number; // in days (can be decimal for debugging)
+  inactivityPeriod: number; // in days (can be decimal for minutes/hours)
   token: string;
   message: string;
+  ownerName: string; // Username/display name for the will owner
 }
 
 export default function CreateWillPage() {
@@ -47,9 +49,10 @@ export default function CreateWillPage() {
     beneficiaryName: '',
     beneficiaryEmail: '',
     percentage: 100,
-    inactivityPeriod: 0.0007, // Default to 1 minute for debugging
+    inactivityPeriod: 365,
     token: 'FLOW',
     message: '',
+    ownerName: '', // Start with empty, will default to "Anonymous" if not filled
   });
 
   const [notification, setNotification] = useState<{
@@ -65,9 +68,47 @@ export default function CreateWillPage() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [, setShowEmailPrompt] = useState(false);
+  const [currentPercentage, setCurrentPercentage] = useState<number>(0);
+  const [loadingPercentage, setLoadingPercentage] = useState(false);
 
-  // Check if user has email set up
+  // Check if user has email set up and fetch current percentage
   useEffect(() => {
+    // Function to fetch current percentage allocation
+    const fetchCurrentPercentage = async () => {
+      if (!user?.addr) return;
+
+      setLoadingPercentage(true);
+      try {
+        const existingWills = await LastTxService.getAllWills(user.addr);
+        const currentTimestamp = Math.floor(Date.now() / 1000);
+
+        const totalExistingPercentage = Object.values(existingWills)
+          .filter((will) => {
+            // Only count wills that are not claimed AND not expired (real-time check)
+            const timeRemaining = Math.max(
+              0,
+              will.lastActivity + will.inactivityDuration - currentTimestamp,
+            );
+            return !will.isClaimed && timeRemaining > 0;
+          })
+          .reduce((total, will) => {
+            return (
+              total +
+              will.beneficiaries.reduce(
+                (sum: number, beneficiary) => sum + beneficiary.percentage,
+                0,
+              )
+            );
+          }, 0);
+        setCurrentPercentage(totalExistingPercentage);
+      } catch (error) {
+        console.error('Error fetching current percentage:', error);
+      } finally {
+        setLoadingPercentage(false);
+      }
+    };
+
     const checkUserEmail = async () => {
       if (!user?.addr) return;
 
@@ -83,7 +124,13 @@ export default function CreateWillPage() {
       }
     };
 
-    checkUserEmail();
+    const loadData = async () => {
+      if (user?.addr) {
+        await Promise.all([checkUserEmail(), fetchCurrentPercentage()]);
+      }
+    };
+
+    loadData();
   }, [user?.addr]);
 
   const updateRule = (field: keyof InheritanceRule, value: string | number) => {
@@ -137,6 +184,47 @@ export default function CreateWillPage() {
     try {
       setIsSubmitting(true);
 
+      // Check total percentage allocation from smart contract
+      if (user?.addr) {
+        try {
+          const existingWills = await LastTxService.getAllWills(user.addr);
+          const currentTimestamp = Math.floor(Date.now() / 1000);
+
+          const totalExistingPercentage = Object.values(existingWills)
+            .filter((will) => {
+              // Only count wills that are not claimed AND not expired (real-time check)
+              const timeRemaining = Math.max(
+                0,
+                will.lastActivity + will.inactivityDuration - currentTimestamp,
+              );
+              return !will.isClaimed && timeRemaining > 0;
+            })
+            .reduce((total, will) => {
+              return (
+                total +
+                will.beneficiaries.reduce(
+                  (sum: number, beneficiary) => sum + beneficiary.percentage,
+                  0,
+                )
+              );
+            }, 0);
+
+          if (totalExistingPercentage + rule.percentage > 100) {
+            setNotification({
+              open: true,
+              type: 'error',
+              title: 'Percentage Limit Exceeded',
+              description: `You currently have ${totalExistingPercentage}% allocated in active wills. Adding ${rule.percentage}% would exceed 100%. Please adjust the percentage or delete some existing wills.`,
+            });
+            setIsSubmitting(false);
+            return;
+          }
+        } catch (error) {
+          console.error('Error checking existing wills:', error);
+          // Continue with creation if we can't check - don't block the user
+        }
+      }
+
       // Convert days to seconds for smart contract
       const inactivityDurationSeconds = rule.inactivityPeriod * 24 * 60 * 60;
 
@@ -167,36 +255,32 @@ export default function CreateWillPage() {
             user.addr,
           );
 
+          // Get the willId from the newly created will by fetching all wills and finding the most recent one
+          // This works because we just created the will and it should be the latest
+          let willId: number | undefined;
+          try {
+            const allWills = await LastTxService.getAllWills(user.addr);
+            const willIds = Object.keys(allWills)
+              .map((id) => parseInt(id))
+              .sort((a, b) => b - a);
+            if (willIds.length > 0) {
+              willId = willIds[0]; // Get the highest (most recent) willId
+            }
+          } catch (error) {
+            console.error('Error fetching willId:', error);
+            // Continue without willId - it's optional
+          }
+
           // Calculate execution date based on inactivity period
-          const now = new Date();
+          // Convert inactivity period from days to milliseconds and add to current time
+          const currentTime = Date.now();
           const inactivityPeriodMs =
             rule.inactivityPeriod * 24 * 60 * 60 * 1000;
-          const executionDate = new Date(now.getTime() + inactivityPeriodMs);
-
-          // Debug timezone information
-          const utcNow = new Date().toISOString();
-          const localNow = new Date().toString();
-          const utcExecution = executionDate.toISOString();
-          const localExecution = executionDate.toString();
-
-          console.log('=== TIMEZONE DEBUG ===');
-          console.log(
-            'Local timezone offset (minutes):',
-            new Date().getTimezoneOffset(),
-          );
-          console.log('Current time (UTC):', utcNow);
-          console.log('Current time (Local):', localNow);
-          console.log('Inactivity period (days):', rule.inactivityPeriod);
-          console.log('Inactivity period (ms):', inactivityPeriodMs);
-          console.log('Execution date (UTC):', utcExecution);
-          console.log('Execution date (Local):', localExecution);
-          console.log(
-            'Expected minutes from now:',
-            rule.inactivityPeriod * 24 * 60,
-          );
+          const executionDate = new Date(currentTime + inactivityPeriodMs);
 
           const willData = {
             smartContractId: transactionId,
+            willId: willId, // Include willId if we successfully fetched it
             dateOfExecution: executionDate.toISOString(),
             recipientName: rule.beneficiaryName,
             recipientEmail: rule.beneficiaryEmail,
@@ -204,7 +288,7 @@ export default function CreateWillPage() {
             percentageOfMoney: rule.percentage,
             ownerAddress: user.addr,
             ownerEmail: userProfile?.email,
-            ownerName: userProfile?.name ?? 'Will Creator',
+            ownerName: rule.ownerName || 'Anonymous',
           };
 
           console.log('Will data being sent to API:', willData);
@@ -232,10 +316,10 @@ export default function CreateWillPage() {
         // Don't fail the whole transaction if this fails, but log it
         setNotification({
           open: true,
-          type: 'error',
+          type: 'success',
           title: 'Warning',
           description:
-            'Will created on blockchain but there was an issue with scheduling. Please contact support.',
+            'Will created on blockchain but there was an issue with email scheduling. Please make sure to setup the .env files accordingly.',
         });
         return;
       }
@@ -244,7 +328,7 @@ export default function CreateWillPage() {
         open: true,
         type: 'success',
         title: 'Will Created Successfully! 🎉',
-        description: `Your inheritance will has been created. Both you and ${rule.beneficiaryName} have been notified via email.`,
+        description: `Your inheritance will has been created. ${rule.beneficiaryName} will be notified via email for future collection.`,
       });
 
       // Reset form after success
@@ -308,7 +392,7 @@ export default function CreateWillPage() {
     <AuthRequired>
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
         <div className="container mx-auto px-4 pt-12 pb-24">
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-2xl mx-auto">
             {/* Header */}
             <div className="text-center mb-12">
               <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
@@ -321,117 +405,149 @@ export default function CreateWillPage() {
             </div>
 
             {/* Main Form */}
-            <Card className="shadow-lg border-primary/10">
+            <Card className="border-primary/10">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Shield className="h-5 w-5" />
-                  <h2 className="text-xl">Create Inheritance Contract</h2>
+                  <span>Create Inheritance Will</span>
                 </CardTitle>
+                <CardDescription>
+                  Configure who will inherit your crypto assets and when
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-12">
-                  {/* Beneficiary Information */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold flex items-center gap-2">
-                      <Mail className="h-4 w-4" />
-                      Beneficiary Information
-                    </h3>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Beneficiary Name */}
-                      <div className="space-y-2">
-                        <Label htmlFor="beneficiary-name">
-                          Beneficiary Name *
-                        </Label>
-                        <Input
-                          id="beneficiary-name"
-                          placeholder="e.g., John Doe"
-                          value={rule.beneficiaryName}
-                          onChange={(e) =>
-                            updateRule('beneficiaryName', e.target.value)
-                          }
-                          required
-                        />
-                      </div>
-
-                      {/* Beneficiary Email */}
-                      <div className="space-y-2">
-                        <Label htmlFor="beneficiary-email">
-                          Beneficiary Email *
-                        </Label>
-                        <Input
-                          id="beneficiary-email"
-                          type="email"
-                          placeholder="john@example.com"
-                          value={rule.beneficiaryEmail}
-                          onChange={(e) =>
-                            updateRule('beneficiaryEmail', e.target.value)
-                          }
-                          required
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Email notifications will be sent to this address
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Beneficiary Address */}
-                      <div className="space-y-2">
-                        <Label htmlFor="beneficiary-address">
-                          Beneficiary Wallet Address *
-                        </Label>
-                        <Input
-                          id="beneficiary-address"
-                          placeholder="0x... (Flow wallet address)"
-                          value={rule.beneficiaryAddress}
-                          onChange={(e) =>
-                            updateRule('beneficiaryAddress', e.target.value)
-                          }
-                          required
-                        />
-                      </div>
-
-                      {/* Percentage */}
-                      <div className="space-y-2">
-                        <Label htmlFor="percentage">Asset Percentage *</Label>
-                        <Input
-                          id="percentage"
-                          type="number"
-                          min="1"
-                          max="100"
-                          placeholder="100"
-                          value={rule.percentage}
-                          onChange={(e) =>
-                            updateRule(
-                              'percentage',
-                              parseInt(e.target.value) || 0,
-                            )
-                          }
-                          required
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Percentage of assets to transfer (1-100%)
-                        </p>
-                      </div>
-                    </div>
-                    {/* Personal Message */}
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Beneficiary Name */}
                     <div className="space-y-2">
-                      <Label htmlFor="message">
-                        Personal Message (Optional)
+                      <Label htmlFor="beneficiary-name">
+                        Beneficiary Name *
                       </Label>
-                      <Textarea
-                        id="message"
-                        placeholder="A personal message for your beneficiary..."
-                        value={rule.message}
-                        onChange={(e) => updateRule('message', e.target.value)}
-                        rows={3}
+                      <Input
+                        id="beneficiary-name"
+                        placeholder="e.g., John Doe"
+                        value={rule.beneficiaryName}
+                        onChange={(e) =>
+                          updateRule('beneficiaryName', e.target.value)
+                        }
+                        required
+                      />
+                    </div>
+
+                    {/* Beneficiary Email */}
+                    <div className="space-y-2">
+                      <Label htmlFor="beneficiary-email">
+                        Beneficiary Email *
+                      </Label>
+                      <Input
+                        id="beneficiary-email"
+                        type="email"
+                        placeholder="john@example.com"
+                        value={rule.beneficiaryEmail}
+                        onChange={(e) =>
+                          updateRule('beneficiaryEmail', e.target.value)
+                        }
+                        required
                       />
                       <p className="text-xs text-muted-foreground">
-                        This message will be included in the inheritance
-                        contract
+                        Email notifications will be sent to this address
                       </p>
                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Beneficiary Address */}
+                    <div className="space-y-2">
+                      <Label htmlFor="beneficiary-address">
+                        Beneficiary Wallet Address *
+                      </Label>
+                      <Input
+                        id="beneficiary-address"
+                        placeholder="0x... (Flow wallet address)"
+                        value={rule.beneficiaryAddress}
+                        onChange={(e) =>
+                          updateRule('beneficiaryAddress', e.target.value)
+                        }
+                        required
+                      />
+                    </div>
+
+                    {/* Percentage */}
+                    <div className="space-y-2">
+                      <Label htmlFor="percentage">Asset Percentage *</Label>
+                      <Input
+                        id="percentage"
+                        type="number"
+                        min="1"
+                        max="100"
+                        placeholder="100"
+                        value={rule.percentage}
+                        onChange={(e) =>
+                          updateRule(
+                            'percentage',
+                            parseInt(e.target.value) || 0,
+                          )
+                        }
+                        required
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Percentage of assets to transfer (1-100%)
+                      </p>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">
+                          Currently Available:
+                        </span>
+                        <span
+                          className={`font-medium ${
+                            loadingPercentage
+                              ? 'text-muted-foreground'
+                              : currentPercentage > 80
+                              ? 'text-orange-600'
+                              : currentPercentage > 90
+                              ? 'text-red-600'
+                              : 'text-green-600'
+                          }`}
+                        >
+                          {loadingPercentage
+                            ? 'Loading...'
+                            : `${Math.max(0, 100 - currentPercentage)}%`}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Your Name */}
+                    <div className="space-y-2">
+                      <Label htmlFor="owner-name">
+                        Your Display Name (Optional)
+                      </Label>
+                      <Input
+                        id="owner-name"
+                        placeholder="e.g., John Smith "
+                        value={rule.ownerName}
+                        onChange={(e) =>
+                          updateRule('ownerName', e.target.value)
+                        }
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        This name will be shown in the will. If left empty, it
+                        will appear as &quot;Anonymous&quot;
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Personal Message */}
+                  <div className="space-y-2">
+                    <Label htmlFor="message">Personal Message (Optional)</Label>
+                    <Textarea
+                      id="message"
+                      placeholder="A personal message for your beneficiary..."
+                      value={rule.message}
+                      onChange={(e) => updateRule('message', e.target.value)}
+                      rows={3}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      This message will be included in the inheritance contract
+                    </p>
                   </div>
 
                   {/* Inactivity Settings */}
@@ -441,71 +557,43 @@ export default function CreateWillPage() {
                       Inactivity Settings
                     </h3>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Inactivity Period */}
-                      <div className="space-y-2">
-                        <Label htmlFor="inactivity-period">
-                          Inactivity Period (Days) *
-                        </Label>
-                        <Select
-                          value={rule.inactivityPeriod.toString()}
-                          onValueChange={(value) =>
-                            updateRule('inactivityPeriod', parseFloat(value))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select period" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="0.0007">
-                              1 minute (Debug)
-                            </SelectItem>
-                            <SelectItem value="0.007">
-                              10 minutes (Debug)
-                            </SelectItem>
-                            <SelectItem value="0.04">1 hour (Debug)</SelectItem>
-                            <SelectItem value="1">1 day (Debug)</SelectItem>
-                            <SelectItem value="30">
-                              30 days (1 month)
-                            </SelectItem>
-                            <SelectItem value="90">
-                              90 days (3 months)
-                            </SelectItem>
-                            <SelectItem value="180">
-                              180 days (6 months)
-                            </SelectItem>
-                            <SelectItem value="365">
-                              365 days (1 year)
-                            </SelectItem>
-                            <SelectItem value="730">
-                              730 days (2 years)
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <p className="text-xs text-muted-foreground">
-                          Time period after which inheritance can be claimed if
-                          no activity
-                        </p>
-                      </div>
-
-                      {/* Token Type */}
-                      <div className="space-y-2">
-                        <Label htmlFor="token">Token Type</Label>
-                        <Select
-                          value={rule.token}
-                          onValueChange={(value) => updateRule('token', value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select token" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="FLOW">FLOW</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <p className="text-xs text-muted-foreground">
-                          Currently supports FLOW tokens only
-                        </p>
-                      </div>
+                    {/* Inactivity Period */}
+                    <div className="space-y-2">
+                      <Label htmlFor="inactivity-period">
+                        Inactivity Period (Days) *
+                      </Label>
+                      <Select
+                        value={rule.inactivityPeriod.toString()}
+                        onValueChange={(value) =>
+                          updateRule('inactivityPeriod', parseFloat(value))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select period" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0.000694">
+                            1 minute (Testing)
+                          </SelectItem>
+                          <SelectItem value="0.00347">
+                            5 minutes (Testing)
+                          </SelectItem>
+                          <SelectItem value="0.0416667">
+                            1 hour (Testing)
+                          </SelectItem>
+                          <SelectItem value="1">1 day</SelectItem>
+                          <SelectItem value="30">30 days (1 month)</SelectItem>
+                          <SelectItem value="90">90 days (3 months)</SelectItem>
+                          <SelectItem value="180">
+                            180 days (6 months)
+                          </SelectItem>
+                          <SelectItem value="365">365 days (1 year)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Time period after which inheritance can be claimed if no
+                        activity
+                      </p>
                     </div>
                   </div>
 
@@ -521,6 +609,119 @@ export default function CreateWillPage() {
                     </Button>
                   </div>
                 </form>
+              </CardContent>
+            </Card>
+
+            {/* How it Works Section */}
+            <Card className="mt-8 border-primary/10">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Shield className="h-5 w-5" />
+                  <span>How LastTx Works</span>
+                </CardTitle>
+                <CardDescription>
+                  Simple, secure, and non-custodial digital inheritance
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Step 1 */}
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <span className="text-lg font-bold text-primary">1</span>
+                    </div>
+                    <h3 className="font-semibold mb-2">
+                      Create Smart Contract
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Set up inheritance rules on the Flow blockchain. Your
+                      funds stay in your wallet - never locked or escrowed.
+                    </p>
+                  </div>
+
+                  {/* Step 2 */}
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <span className="text-lg font-bold text-primary">2</span>
+                    </div>
+                    <h3 className="font-semibold mb-2">
+                      Add Multiple Beneficiaries
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Create multiple wills with different beneficiaries and
+                      percentages. You maintain full control and can access your
+                      funds anytime.
+                    </p>
+                  </div>
+
+                  {/* Step 3 */}
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <span className="text-lg font-bold text-primary">3</span>
+                    </div>
+                    <h3 className="font-semibold mb-2">
+                      Funds Stay Accessible
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Your crypto remains in your wallet. Trade, spend, or
+                      manage as usual. The contract only activates after
+                      inactivity periods.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Key Benefits */}
+                <div className="border-t pt-6">
+                  <h4 className="font-semibold mb-3 text-center">
+                    Key Benefits
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex items-start space-x-3">
+                      <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center mt-0.5">
+                        <span className="text-xs text-green-600">✓</span>
+                      </div>
+                      <div>
+                        <p className="font-medium">Non-Custodial</p>
+                        <p className="text-xs text-muted-foreground">
+                          Your funds never leave your wallet
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-3">
+                      <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center mt-0.5">
+                        <span className="text-xs text-green-600">✓</span>
+                      </div>
+                      <div>
+                        <p className="font-medium">Multiple Beneficiaries</p>
+                        <p className="text-xs text-muted-foreground">
+                          Split inheritance across multiple people
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-3">
+                      <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center mt-0.5">
+                        <span className="text-xs text-green-600">✓</span>
+                      </div>
+                      <div>
+                        <p className="font-medium">Always Accessible</p>
+                        <p className="text-xs text-muted-foreground">
+                          Full control over your assets at all times
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-3">
+                      <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center mt-0.5">
+                        <span className="text-xs text-green-600">✓</span>
+                      </div>
+                      <div>
+                        <p className="font-medium">Blockchain Secured</p>
+                        <p className="text-xs text-muted-foreground">
+                          Smart contracts ensure automatic execution
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>

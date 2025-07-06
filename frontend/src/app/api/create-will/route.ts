@@ -2,22 +2,37 @@ import { createClient } from '@supabase/supabase-js';
 import { CloudSchedulerClient } from '@google-cloud/scheduler';
 import { NextRequest, NextResponse } from 'next/server';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!; // Assuming you have this as public env
-const supabaseKey = process.env.SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Check if email features are configured
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const hasSupabaseConfig = supabaseUrl && supabaseKey;
 
-// Initialize Google Cloud Scheduler client
-// Use credentials from environment variables for secure deployment
-const schedulerClient = new CloudSchedulerClient({
-  projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
-  credentials: {
-    client_email: process.env.GOOGLE_CLOUD_CLIENT_EMAIL,
-    private_key: process.env.GOOGLE_CLOUD_PRIVATE_KEY!.replace(/\\n/g, '\n'), // Replace \\n with actual newlines
-  },
-});
+const hasGoogleCloudConfig =
+  process.env.GOOGLE_CLOUD_PROJECT_ID &&
+  process.env.GOOGLE_CLOUD_CLIENT_EMAIL &&
+  process.env.GOOGLE_CLOUD_PRIVATE_KEY;
+
+// Only initialize if configured
+const supabase = hasSupabaseConfig
+  ? createClient(supabaseUrl!, supabaseKey!)
+  : null;
+
+const schedulerClient = hasGoogleCloudConfig
+  ? new CloudSchedulerClient({
+      projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
+      credentials: {
+        client_email: process.env.GOOGLE_CLOUD_CLIENT_EMAIL,
+        private_key: process.env.GOOGLE_CLOUD_PRIVATE_KEY!.replace(
+          /\\n/g,
+          '\n',
+        ),
+      },
+    })
+  : null;
 
 interface WillData {
   smartContractId: string;
+  willId?: number; // Optional will ID from smart contract (auto-incrementing number)
   dateOfExecution: string; // ISO date string
   recipientName: string;
   recipientEmail: string;
@@ -30,6 +45,15 @@ interface WillData {
 
 export async function POST(request: NextRequest) {
   try {
+    // Early return if neither email features are configured
+    if (!hasSupabaseConfig || !hasGoogleCloudConfig) {
+      return NextResponse.json({
+        success: true,
+        message:
+          'Will created successfully. Email notifications are not configured.',
+      });
+    }
+
     const willData: WillData = await request.json();
 
     // Validate required fields
@@ -47,23 +71,41 @@ export async function POST(request: NextRequest) {
     }
 
     // Save will data to Supabase
-    const { data: savedWill, error: supabaseError } = await supabase
+    const willInsertData: {
+      smart_contract_id: string;
+      date_of_execution: string;
+      recipient_name: string;
+      recipient_email: string;
+      message: string;
+      percentage_of_money: number;
+      owner_address: string;
+      owner_email?: string;
+      owner_name?: string;
+      status: string;
+      created_at: string;
+      will_id?: string;
+    } = {
+      smart_contract_id: willData.smartContractId,
+      date_of_execution: willData.dateOfExecution,
+      recipient_name: willData.recipientName,
+      recipient_email: willData.recipientEmail,
+      message: willData.message,
+      percentage_of_money: willData.percentageOfMoney,
+      owner_address: willData.ownerAddress,
+      owner_email: willData.ownerEmail,
+      owner_name: willData.ownerName,
+      status: 'active',
+      created_at: new Date().toISOString(),
+    };
+
+    // Include willId if provided (convert number to string for Supabase)
+    if (willData.willId) {
+      willInsertData.will_id = willData.willId.toString();
+    }
+
+    const { data: savedWill, error: supabaseError } = await supabase!
       .from('wills')
-      .insert([
-        {
-          smart_contract_id: willData.smartContractId,
-          date_of_execution: willData.dateOfExecution,
-          recipient_name: willData.recipientName,
-          recipient_email: willData.recipientEmail,
-          message: willData.message,
-          percentage_of_money: willData.percentageOfMoney,
-          owner_address: willData.ownerAddress,
-          owner_email: willData.ownerEmail,
-          owner_name: willData.ownerName,
-          status: 'active',
-          created_at: new Date().toISOString(),
-        },
-      ])
+      .insert([willInsertData])
       .select()
       .single();
 
@@ -100,11 +142,10 @@ export async function POST(request: NextRequest) {
 
       // Use UTC methods to ensure consistent timezone handling
       // Format: MINUTE HOUR DAY_OF_MONTH MONTH DAY_OF_WEEK
+      // IMPORTANT: Use UTC methods since timeZone is set to UTC
       const cronExpression = `${executionDate.getUTCMinutes()} ${executionDate.getUTCHours()} ${executionDate.getUTCDate()} ${
         executionDate.getUTCMonth() + 1
       } *`;
-
-      console.log('Generated cron expression:', cronExpression);
 
       const job = {
         name: fullJobName,
@@ -127,7 +168,7 @@ export async function POST(request: NextRequest) {
         timeZone: 'UTC', // It's good practice to use UTC for scheduling
       };
 
-      const [createdJob] = await schedulerClient.createJob({
+      const [createdJob] = await schedulerClient!.createJob({
         parent,
         job,
       });
@@ -145,7 +186,7 @@ export async function POST(request: NextRequest) {
 
       // Optionally delete the Supabase record if scheduling fails
       // This ensures data consistency if the scheduling step fails
-      await supabase.from('wills').delete().eq('id', savedWill.id);
+      await supabase!.from('wills').delete().eq('id', savedWill.id);
       console.log(
         `Deleted Supabase record for failed schedule: ${savedWill.id}`,
       );

@@ -3,7 +3,10 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useLastTx } from "@/lib/hooks/useLastTx";
+import { useAuth } from "@/lib/hooks/useAuth";
 import { AuthRequired } from "@/components/auth/AuthButton";
+import { LastTxService } from "@/lib/lasttx-service";
+import { UserProfileService } from "@/lib/services/user-profile.service";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -38,8 +41,9 @@ interface InheritanceRule {
   beneficiaryName: string;
   beneficiaryEmail: string;
   percentage: number;
-  inactivityPeriod: number;
+  inactivityPeriod: number; // Now stored in minutes for better precision
   message: string;
+  ownerName: string; // Username/display name for the will owner
 }
 
 export default function EditRulePage() {
@@ -47,6 +51,7 @@ export default function EditRulePage() {
   const params = useParams();
   const ruleId = params?.id as string;
   const { lastTxsById, updateLastTx, refresh } = useLastTx();
+  const { user } = useAuth();
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -58,34 +63,50 @@ export default function EditRulePage() {
     beneficiaryName: "",
     beneficiaryEmail: "",
     percentage: 100,
-    inactivityPeriod: 30,
+    inactivityPeriod: 365, // Default to 365 days if not set
     message: "",
+    ownerName: "", // Start with empty, will default to "Anonymous" if not filled
   });
 
   const currentRule = lastTxsById[ruleId];
 
   useEffect(() => {
-    if (currentRule) {
-      const beneficiary = currentRule.beneficiaries[0];
-      const calculatedPeriod = Math.floor(
-        currentRule.inactivityDuration / (24 * 60 * 60)
-      );
+    const loadRuleData = async () => {
+      if (currentRule) {
+        const beneficiary = currentRule.beneficiaries[0];
+        const calculatedPeriod = Math.round(
+          currentRule.inactivityDuration / 60 // Convert to minutes
+        );
 
-      setRule({
-        beneficiaryAddress: beneficiary?.address ?? "",
-        beneficiaryName: beneficiary?.name ?? "",
-        beneficiaryEmail: beneficiary?.email ?? "",
-        percentage: beneficiary?.percentage ?? 100,
-        inactivityPeriod: calculatedPeriod,
-        message: currentRule.personalMessage ?? "", // Load personal message from blockchain
-      });
-      setIsLoading(false);
-    } else if (ruleId) {
-      // Rule not found
-      setError("Rule not found");
-      setIsLoading(false);
-    }
-  }, [currentRule, ruleId]);
+        // Get user profile for pre-filling
+        let userProfile = null;
+        if (user?.addr) {
+          try {
+            userProfile = await UserProfileService.getUserProfile(user.addr);
+          } catch (error) {
+            console.error("Error fetching user profile:", error);
+          }
+        }
+
+        setRule({
+          beneficiaryAddress: beneficiary?.address ?? "",
+          beneficiaryName: beneficiary?.name ?? "",
+          beneficiaryEmail: beneficiary?.email ?? (userProfile?.email || ""), // Pre-fill with user's email if beneficiary email is empty
+          percentage: beneficiary?.percentage ?? 100,
+          inactivityPeriod: calculatedPeriod || 525600, // Default to 365 days in minutes (365 * 24 * 60)
+          message: currentRule.personalMessage ?? "", // Load personal message from blockchain
+          ownerName: userProfile?.name || "", // Pre-fill with user's name
+        });
+        setIsLoading(false);
+      } else if (ruleId && !isLoading) {
+        // Only show error after initial loading is complete
+        setError("Rule not found");
+        setIsLoading(false);
+      }
+    };
+
+    loadRuleData();
+  }, [currentRule, ruleId, isLoading, user?.addr]);
 
   const updateRule = (field: keyof InheritanceRule, value: string | number) => {
     setRule((prev) => ({ ...prev, [field]: value }));
@@ -124,8 +145,77 @@ export default function EditRulePage() {
     setError(null);
 
     try {
-      // Convert days to seconds for smart contract
-      const inactivityDurationSeconds = rule.inactivityPeriod * 24 * 60 * 60;
+      // First, fetch fresh data to ensure the will is still active
+      let freshWillData;
+      if (user?.addr) {
+        try {
+          const allWills = await LastTxService.getAllWills(user.addr);
+          freshWillData = allWills[ruleId];
+
+          if (!freshWillData) {
+            setError("Will not found on blockchain. It may have been deleted.");
+            setIsSaving(false);
+            return;
+          }
+
+          // Check if the will has expired since the page was loaded
+          const currentTimestamp = Math.floor(Date.now() / 1000);
+          const timeRemaining = Math.max(
+            0,
+            freshWillData.lastActivity +
+              freshWillData.inactivityDuration -
+              currentTimestamp
+          );
+          const isExpired = timeRemaining <= 0;
+
+          if (freshWillData.isClaimed || isExpired) {
+            setError(
+              "This will has expired or been claimed since the page was loaded. Only active wills can be edited."
+            );
+            setIsSaving(false);
+            return;
+          }
+        } catch (error) {
+          console.error("Error fetching fresh will data:", error);
+          setError("Failed to verify will status. Please try again.");
+          setIsSaving(false);
+          return;
+        }
+      }
+
+      // Check total percentage allocation from smart contract (excluding current rule)
+      if (user?.addr && freshWillData) {
+        try {
+          const allWills = await LastTxService.getAllWills(user.addr);
+          const totalExistingPercentage = Object.values(allWills)
+            .filter(
+              (will) => !will.isClaimed && !will.isExpired && will.id !== ruleId
+            ) // Exclude current rule being edited
+            .reduce((total: number, will) => {
+              return (
+                total +
+                will.beneficiaries.reduce(
+                  (sum: number, beneficiary) => sum + beneficiary.percentage,
+                  0
+                )
+              );
+            }, 0);
+
+          if (totalExistingPercentage + rule.percentage > 100) {
+            setError(
+              `You currently have ${totalExistingPercentage}% allocated in other active wills. Setting this will to ${rule.percentage}% would exceed 100%. Please adjust the percentage.`
+            );
+            setIsSaving(false);
+            return;
+          }
+        } catch (error) {
+          console.error("Error checking existing wills:", error);
+          // Continue with update if we can't check - don't block the user
+        }
+      }
+
+      // Convert minutes to seconds for smart contract
+      const inactivityDurationSeconds = rule.inactivityPeriod * 60;
 
       // Create beneficiary array for smart contract
       const beneficiaries = [
@@ -146,6 +236,35 @@ export default function EditRulePage() {
       );
 
       if (success) {
+        // Also update Supabase and Google Cloud Scheduler (similar to refresh logic)
+        try {
+          const response = await fetch("/api/update-will", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              smartContractId: `will-${ruleId}`, // Use fallback pattern
+              inactivityPeriodMinutes: rule.inactivityPeriod, // Send in minutes
+              ownerAddress: user?.addr,
+              willId: parseInt(ruleId),
+              beneficiaryEmail: rule.beneficiaryEmail,
+              beneficiaryName: rule.beneficiaryName,
+              ownerName: rule.ownerName || "Anonymous",
+              personalMessage: rule.message,
+            }),
+          });
+
+          if (!response.ok) {
+            console.error(
+              "Failed to update email/scheduling:",
+              await response.json()
+            );
+          }
+        } catch (error) {
+          console.error("Error updating email/scheduling:", error);
+        }
+
         setSuccess(true);
         setTimeout(() => {
           refresh(); // Refresh the data
@@ -269,7 +388,9 @@ export default function EditRulePage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Beneficiary Name */}
                     <div className="space-y-2">
-                      <Label htmlFor="beneficiary-name">Beneficiary Name</Label>
+                      <Label htmlFor="beneficiary-name">
+                        Beneficiary Name *
+                      </Label>
                       <Input
                         id="beneficiary-name"
                         placeholder="John Doe"
@@ -298,14 +419,14 @@ export default function EditRulePage() {
                         disabled={isSaving}
                       />
                       <p className="text-xs text-muted-foreground">
-                        Email address to notify when inheritance is assigned
+                        Email notifications will be sent to this address
                       </p>
                     </div>
 
                     {/* Beneficiary Address */}
-                    <div className="space-y-2 md:col-span-2">
+                    <div className="space-y-2">
                       <Label htmlFor="beneficiary-address">
-                        Flow Wallet Address
+                        Beneficiary Wallet Address *
                       </Label>
                       <Input
                         id="beneficiary-address"
@@ -321,7 +442,7 @@ export default function EditRulePage() {
 
                     {/* Percentage */}
                     <div className="space-y-2">
-                      <Label htmlFor="percentage">Asset Percentage</Label>
+                      <Label htmlFor="percentage">Asset Percentage *</Label>
                       <Input
                         id="percentage"
                         type="number"
@@ -343,46 +464,28 @@ export default function EditRulePage() {
                       </p>
                     </div>
 
-                    {/* Inactivity Period */}
+                    {/* Your Name */}
                     <div className="space-y-2">
-                      <Label htmlFor="inactivity-period">
-                        Inactivity Period
+                      <Label htmlFor="owner-name">
+                        Your Display Name (Optional)
                       </Label>
-                      <Select
-                        value={rule.inactivityPeriod.toString()}
-                        onValueChange={(value) =>
-                          updateRule("inactivityPeriod", parseInt(value))
+                      <Input
+                        id="owner-name"
+                        placeholder="e.g., John Smith"
+                        value={rule.ownerName}
+                        onChange={(e) =>
+                          updateRule("ownerName", e.target.value)
                         }
                         disabled={isSaving}
-                      >
-                        <SelectTrigger>
-                          <SelectValue
-                            placeholder={`Current: ${rule.inactivityPeriod} days`}
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">1 day</SelectItem>
-                          <SelectItem value="7">7 days (1 week)</SelectItem>
-                          <SelectItem value="30">30 days (1 month)</SelectItem>
-                          <SelectItem value="90">90 days (3 months)</SelectItem>
-                          <SelectItem value="180">
-                            180 days (6 months)
-                          </SelectItem>
-                          <SelectItem value="365">365 days (1 year)</SelectItem>
-                          <SelectItem value="730">
-                            730 days (2 years)
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
+                      />
                       <p className="text-xs text-muted-foreground">
-                        <Clock className="h-3 w-3 inline mr-1" />
-                        Current setting: {rule.inactivityPeriod} days | Time
-                        before automatic transfer
+                        This name will be shown in the will. If left empty, it
+                        will appear as &quot;Anonymous&quot;
                       </p>
                     </div>
 
                     {/* Personal Message */}
-                    <div className="space-y-2 md:col-span-2">
+                    <div className="space-y-2">
                       <Label htmlFor="personal-message">
                         Personal Message (Optional)
                       </Label>
@@ -397,6 +500,92 @@ export default function EditRulePage() {
                       <p className="text-xs text-muted-foreground">
                         Personal message that will be accessible to your
                         beneficiary and stored on the blockchain.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Inactivity Settings */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Inactivity Settings
+                    </h3>
+
+                    {/* Inactivity Period */}
+                    <div className="space-y-2">
+                      <Label htmlFor="inactivity-period">
+                        Inactivity Period
+                      </Label>
+                      <Select
+                        value={rule.inactivityPeriod.toString()}
+                        onValueChange={(value) =>
+                          updateRule("inactivityPeriod", parseInt(value))
+                        }
+                        disabled={isSaving}
+                      >
+                        <SelectTrigger>
+                          <SelectValue
+                            placeholder={`Current: ${(() => {
+                              if (rule.inactivityPeriod < 60) {
+                                return `${rule.inactivityPeriod} minutes`;
+                              } else if (rule.inactivityPeriod < 60 * 24) {
+                                const hours = Math.floor(
+                                  rule.inactivityPeriod / 60
+                                );
+                                return `${hours} hours`;
+                              } else {
+                                const days = Math.floor(
+                                  rule.inactivityPeriod / (60 * 24)
+                                );
+                                return `${days} days`;
+                              }
+                            })()}`}
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">1 minute (Testing)</SelectItem>
+                          <SelectItem value="5">5 minutes (Testing)</SelectItem>
+                          <SelectItem value="60">1 hour (Testing)</SelectItem>
+                          <SelectItem value="1440">1 day</SelectItem>
+                          <SelectItem value="10080">7 days (1 week)</SelectItem>
+                          <SelectItem value="43200">
+                            30 days (1 month)
+                          </SelectItem>
+                          <SelectItem value="129600">
+                            90 days (3 months)
+                          </SelectItem>
+                          <SelectItem value="259200">
+                            180 days (6 months)
+                          </SelectItem>
+                          <SelectItem value="525600">
+                            365 days (1 year)
+                          </SelectItem>
+                          <SelectItem value="1051200">
+                            730 days (2 years)
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3 inline mr-1" />
+                        Current setting:{" "}
+                        {(() => {
+                          if (rule.inactivityPeriod < 60) {
+                            return `${rule.inactivityPeriod} minute${
+                              rule.inactivityPeriod !== 1 ? "s" : ""
+                            }`;
+                          } else if (rule.inactivityPeriod < 60 * 24) {
+                            const hours = Math.floor(
+                              rule.inactivityPeriod / 60
+                            );
+                            return `${hours} hour${hours !== 1 ? "s" : ""}`;
+                          } else {
+                            const days = Math.floor(
+                              rule.inactivityPeriod / (60 * 24)
+                            );
+                            return `${days} day${days !== 1 ? "s" : ""}`;
+                          }
+                        })()}{" "}
+                        | Time before automatic transfer
                       </p>
                     </div>
                   </div>
