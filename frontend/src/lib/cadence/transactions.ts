@@ -61,13 +61,16 @@ transaction(ownerAddress: Address, lastTxId: UInt64) {
     let lastTxCollection: &LastTx.Collection
     
     prepare(beneficiarySigner: auth(Storage) &Account) {
+        /// Get beneficiary's vault to receive inheritance
         self.beneficiaryVault = beneficiarySigner.storage.borrow<&FlowToken.Vault>(from: /storage/flowTokenVault)!
         
+        /// Get reference to owner's LastTx collection
         let ownerAccount = getAccount(ownerAddress)
         self.lastTxCollection = ownerAccount.capabilities.borrow<&LastTx.Collection>(LastTx.LastTxPublicPath)!
     }
     
     execute {
+        /// Execute inheritance claim
         let success = self.lastTxCollection.claimInheritance(
             id: lastTxId,
             beneficiaryVault: self.beneficiaryVault

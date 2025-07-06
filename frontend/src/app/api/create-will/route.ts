@@ -1,6 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
-import { CloudSchedulerClient } from "@google-cloud/scheduler";
-import { NextRequest, NextResponse } from "next/server";
+import { createClient } from '@supabase/supabase-js';
+import { CloudSchedulerClient } from '@google-cloud/scheduler';
+import { NextRequest, NextResponse } from 'next/server';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!; // Assuming you have this as public env
 const supabaseKey = process.env.SUPABASE_ANON_KEY!;
@@ -12,7 +12,7 @@ const schedulerClient = new CloudSchedulerClient({
   projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
   credentials: {
     client_email: process.env.GOOGLE_CLOUD_CLIENT_EMAIL,
-    private_key: process.env.GOOGLE_CLOUD_PRIVATE_KEY!.replace(/\\n/g, "\n"), // Replace \\n with actual newlines
+    private_key: process.env.GOOGLE_CLOUD_PRIVATE_KEY!.replace(/\\n/g, '\n'), // Replace \\n with actual newlines
   },
 });
 
@@ -41,14 +41,14 @@ export async function POST(request: NextRequest) {
       !willData.ownerAddress
     ) {
       return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
+        { error: 'Missing required fields' },
+        { status: 400 },
       );
     }
 
     // Save will data to Supabase
     const { data: savedWill, error: supabaseError } = await supabase
-      .from("wills")
+      .from('wills')
       .insert([
         {
           smart_contract_id: willData.smartContractId,
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
           owner_address: willData.ownerAddress,
           owner_email: willData.ownerEmail,
           owner_name: willData.ownerName,
-          status: "active",
+          status: 'active',
           created_at: new Date().toISOString(),
         },
       ])
@@ -68,17 +68,17 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (supabaseError) {
-      console.error("Supabase error:", supabaseError);
+      console.error('Supabase error:', supabaseError);
       return NextResponse.json(
-        { error: "Failed to save will data" },
-        { status: 500 }
+        { error: 'Failed to save will data' },
+        { status: 500 },
       );
     }
 
     // Schedule job using Google Cloud Scheduler to call Supabase Edge Function directly
     try {
       const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID!;
-      const location = process.env.GOOGLE_CLOUD_LOCATION || "us-central1"; // Use default if not set
+      const location = process.env.GOOGLE_CLOUD_LOCATION ?? 'us-central1'; // Use default if not set
       const parent = `projects/${projectId}/locations/${location}`;
 
       // Create job name using smart contract ID
@@ -88,32 +88,43 @@ export async function POST(request: NextRequest) {
       // Convert execution date to cron format for ONE-TIME execution
       const executionDate = new Date(willData.dateOfExecution);
 
-      // Use standard cron format but we'll handle one-time execution in the Edge Function
+      // Debug timezone information
+      console.log('=== SCHEDULER TIMEZONE DEBUG ===');
+      console.log('Received dateOfExecution:', willData.dateOfExecution);
+      console.log('Parsed execution date (UTC):', executionDate.toISOString());
+      console.log('Parsed execution date (Local):', executionDate.toString());
+      console.log('Minutes:', executionDate.getUTCMinutes());
+      console.log('Hours:', executionDate.getUTCHours());
+      console.log('Date:', executionDate.getUTCDate());
+      console.log('Month:', executionDate.getUTCMonth() + 1);
+
+      // Use UTC methods to ensure consistent timezone handling
       // Format: MINUTE HOUR DAY_OF_MONTH MONTH DAY_OF_WEEK
-      const cronExpression = `${executionDate.getMinutes()} ${executionDate.getHours()} ${executionDate.getDate()} ${
-        executionDate.getMonth() + 1
+      const cronExpression = `${executionDate.getUTCMinutes()} ${executionDate.getUTCHours()} ${executionDate.getUTCDate()} ${
+        executionDate.getUTCMonth() + 1
       } *`;
 
+      console.log('Generated cron expression:', cronExpression);
 
       const job = {
         name: fullJobName,
         description: `Execute will for smart contract ${willData.smartContractId} - ONE TIME ONLY`,
         httpTarget: {
           uri: `${supabaseUrl}/functions/v1/send-email`, // Call your existing Supabase Edge Function
-          httpMethod: "POST" as const,
+          httpMethod: 'POST' as const,
           headers: {
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
             Authorization: `Bearer ${process.env.SUPABASE_ANON_KEY}`, // Use your Supabase anon key for the Edge Function call
           },
           body: Buffer.from(
             JSON.stringify({
               id: willData.smartContractId, // Only pass the ID
               jobName: jobName, // Pass job name so Edge Function can delete the scheduler job
-            })
+            }),
           ),
         },
         schedule: cronExpression,
-        timeZone: "UTC", // It's good practice to use UTC for scheduling
+        timeZone: 'UTC', // It's good practice to use UTC for scheduling
       };
 
       const [createdJob] = await schedulerClient.createJob({
@@ -127,28 +138,28 @@ export async function POST(request: NextRequest) {
         success: true,
         willId: savedWill.id,
         scheduledJobName: createdJob.name,
-        message: "Will created and scheduled with Google Cloud Scheduler",
+        message: 'Will created and scheduled with Google Cloud Scheduler',
       });
     } catch (schedulerError) {
-      console.error("Google Cloud Scheduler error:", schedulerError);
+      console.error('Google Cloud Scheduler error:', schedulerError);
 
       // Optionally delete the Supabase record if scheduling fails
       // This ensures data consistency if the scheduling step fails
-      await supabase.from("wills").delete().eq("id", savedWill.id);
+      await supabase.from('wills').delete().eq('id', savedWill.id);
       console.log(
-        `Deleted Supabase record for failed schedule: ${savedWill.id}`
+        `Deleted Supabase record for failed schedule: ${savedWill.id}`,
       );
 
       return NextResponse.json(
-        { error: "Failed to schedule will execution" },
-        { status: 500 }
+        { error: 'Failed to schedule will execution' },
+        { status: 500 },
       );
     }
   } catch (error) {
-    console.error("API error:", error);
+    console.error('API error:', error);
     return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
+      { error: 'Internal server error' },
+      { status: 500 },
     );
   }
 }

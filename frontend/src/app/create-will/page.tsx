@@ -1,38 +1,38 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useLastTx } from "@/lib/hooks/useLastTx";
-import { useAuth } from "@/lib/hooks/useAuth";
-import { AuthRequired } from "@/components/auth/AuthButton";
-import { Button } from "@/components/ui/button";
-import { NotificationDialog } from "@/components/ui/confirm-dialog";
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useLastTx } from '@/lib/hooks/useLastTx';
+import { useAuth } from '@/lib/hooks/useAuth';
+import { AuthRequired } from '@/components/auth/AuthButton';
+import { Button } from '@/components/ui/button';
+import { NotificationDialog } from '@/components/ui/confirm-dialog';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Shield, Clock, Mail } from "lucide-react";
-import { UserProfileService } from "@/lib/services/user-profile.service";
+} from '@/components/ui/select';
+import { Shield, Clock, Mail } from 'lucide-react';
+import { UserProfileService } from '@/lib/services/user-profile.service';
 
 interface InheritanceRule {
   beneficiaryAddress: string;
   beneficiaryName: string;
   beneficiaryEmail: string;
   percentage: number;
-  inactivityPeriod: number; // in days
+  inactivityPeriod: number; // in days (can be decimal for debugging)
   token: string;
   message: string;
 }
@@ -43,29 +43,28 @@ export default function CreateWillPage() {
   const { user } = useAuth();
 
   const [rule, setRule] = useState<InheritanceRule>({
-    beneficiaryAddress: "",
-    beneficiaryName: "",
-    beneficiaryEmail: "",
+    beneficiaryAddress: '',
+    beneficiaryName: '',
+    beneficiaryEmail: '',
     percentage: 100,
-    inactivityPeriod: 365,
-    token: "FLOW",
-    message: "",
+    inactivityPeriod: 0.0007, // Default to 1 minute for debugging
+    token: 'FLOW',
+    message: '',
   });
 
   const [notification, setNotification] = useState<{
     open: boolean;
-    type: "success" | "error";
+    type: 'success' | 'error';
     title: string;
     description: string;
   }>({
     open: false,
-    type: "success",
-    title: "",
-    description: "",
+    type: 'success',
+    title: '',
+    description: '',
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [, setShowEmailPrompt] = useState(false);
 
   // Check if user has email set up
   useEffect(() => {
@@ -77,10 +76,10 @@ export default function CreateWillPage() {
 
         // Show prompt if user doesn't have email
         if (!hasEmail) {
-          setShowEmailPrompt(true);
+          console.log("User doesn't have email set up");
         }
       } catch (error) {
-        console.error("Error checking user email:", error);
+        console.error('Error checking user email:', error);
       }
     };
 
@@ -100,10 +99,10 @@ export default function CreateWillPage() {
     if (rule.percentage <= 0 || rule.percentage > 100) {
       setNotification({
         open: true,
-        type: "error",
-        title: "Validation Error",
+        type: 'error',
+        title: 'Validation Error',
         description:
-          "Please set a valid percentage (1-100) for the inheritance rule.",
+          'Please set a valid percentage (1-100) for the inheritance rule.',
       });
       return;
     }
@@ -115,10 +114,10 @@ export default function CreateWillPage() {
     ) {
       setNotification({
         open: true,
-        type: "error",
-        title: "Missing Information",
+        type: 'error',
+        title: 'Missing Information',
         description:
-          "Please fill in beneficiary name, email, and wallet address.",
+          'Please fill in beneficiary name, email, and wallet address.',
       });
       return;
     }
@@ -128,9 +127,9 @@ export default function CreateWillPage() {
     if (!emailRegex.test(rule.beneficiaryEmail)) {
       setNotification({
         open: true,
-        type: "error",
-        title: "Invalid Email",
-        description: "Please enter a valid email address.",
+        type: 'error',
+        title: 'Invalid Email',
+        description: 'Please enter a valid email address.',
       });
       return;
     }
@@ -148,15 +147,15 @@ export default function CreateWillPage() {
         inactivityDurationSeconds,
         rule.beneficiaryName,
         rule.message,
-        rule.beneficiaryEmail // Include email
+        rule.beneficiaryEmail, // Include email
       );
 
       if (!transactionId) {
         setNotification({
           open: true,
-          type: "error",
-          title: "Creation Failed",
-          description: "Failed to create inheritance rule. Please try again.",
+          type: 'error',
+          title: 'Creation Failed',
+          description: 'Failed to create inheritance rule. Please try again.',
         });
         return;
       }
@@ -165,13 +164,35 @@ export default function CreateWillPage() {
       try {
         if (user?.addr) {
           const userProfile = await UserProfileService.getUserProfile(
-            user.addr
+            user.addr,
           );
 
           // Calculate execution date based on inactivity period
-          const executionDate = new Date();
-          executionDate.setDate(
-            executionDate.getDate() + rule.inactivityPeriod
+          const now = new Date();
+          const inactivityPeriodMs =
+            rule.inactivityPeriod * 24 * 60 * 60 * 1000;
+          const executionDate = new Date(now.getTime() + inactivityPeriodMs);
+
+          // Debug timezone information
+          const utcNow = new Date().toISOString();
+          const localNow = new Date().toString();
+          const utcExecution = executionDate.toISOString();
+          const localExecution = executionDate.toString();
+
+          console.log('=== TIMEZONE DEBUG ===');
+          console.log(
+            'Local timezone offset (minutes):',
+            new Date().getTimezoneOffset(),
+          );
+          console.log('Current time (UTC):', utcNow);
+          console.log('Current time (Local):', localNow);
+          console.log('Inactivity period (days):', rule.inactivityPeriod);
+          console.log('Inactivity period (ms):', inactivityPeriodMs);
+          console.log('Execution date (UTC):', utcExecution);
+          console.log('Execution date (Local):', localExecution);
+          console.log(
+            'Expected minutes from now:',
+            rule.inactivityPeriod * 24 * 60,
           );
 
           const willData = {
@@ -183,58 +204,60 @@ export default function CreateWillPage() {
             percentageOfMoney: rule.percentage,
             ownerAddress: user.addr,
             ownerEmail: userProfile?.email,
-            ownerName: userProfile?.name || "Will Creator",
+            ownerName: userProfile?.name ?? 'Will Creator',
           };
 
+          console.log('Will data being sent to API:', willData);
+
           // Call our API to save and schedule
-          const response = await fetch("/api/create-will", {
-            method: "POST",
+          const response = await fetch('/api/create-will', {
+            method: 'POST',
             headers: {
-              "Content-Type": "application/json",
+              'Content-Type': 'application/json',
             },
             body: JSON.stringify(willData),
           });
 
           if (!response.ok) {
             const errorData = await response.json();
-            console.error("API error:", errorData);
-            throw new Error(errorData.error || "Failed to save will data");
+            console.error('API error:', errorData);
+            throw new Error(errorData.error ?? 'Failed to save will data');
           }
 
           const result = await response.json();
-          console.log("Will saved and scheduled:", result);
+          console.log('Will saved and scheduled:', result);
         }
       } catch (error) {
-        console.error("Error saving will data or sending email:", error);
+        console.error('Error saving will data or sending email:', error);
         // Don't fail the whole transaction if this fails, but log it
         setNotification({
           open: true,
-          type: "error",
-          title: "Warning",
+          type: 'error',
+          title: 'Warning',
           description:
-            "Will created on blockchain but there was an issue with scheduling. Please contact support.",
+            'Will created on blockchain but there was an issue with scheduling. Please contact support.',
         });
         return;
       }
 
       setNotification({
         open: true,
-        type: "success",
-        title: "Will Created Successfully! 🎉",
+        type: 'success',
+        title: 'Will Created Successfully! 🎉',
         description: `Your inheritance will has been created. Both you and ${rule.beneficiaryName} have been notified via email.`,
       });
 
       // Reset form after success
       setTimeout(() => {
-        router.push("/my-wills");
+        router.push('/my-wills');
       }, 2000);
     } catch (error) {
-      console.error("Error creating will:", error);
+      console.error('Error creating will:', error);
       setNotification({
         open: true,
-        type: "error",
-        title: "Transaction Failed",
-        description: "Failed to create inheritance will. Please try again.",
+        type: 'error',
+        title: 'Transaction Failed',
+        description: 'Failed to create inheritance will. Please try again.',
       });
     } finally {
       setIsSubmitting(false);
@@ -270,7 +293,7 @@ export default function CreateWillPage() {
                     className="w-full"
                     size="lg"
                   >
-                    {loading ? "Setting up..." : "Setup Account"}
+                    {loading ? 'Setting up...' : 'Setup Account'}
                   </Button>
                 </CardContent>
               </Card>
@@ -325,7 +348,7 @@ export default function CreateWillPage() {
                           placeholder="e.g., John Doe"
                           value={rule.beneficiaryName}
                           onChange={(e) =>
-                            updateRule("beneficiaryName", e.target.value)
+                            updateRule('beneficiaryName', e.target.value)
                           }
                           required
                         />
@@ -342,7 +365,7 @@ export default function CreateWillPage() {
                           placeholder="john@example.com"
                           value={rule.beneficiaryEmail}
                           onChange={(e) =>
-                            updateRule("beneficiaryEmail", e.target.value)
+                            updateRule('beneficiaryEmail', e.target.value)
                           }
                           required
                         />
@@ -363,7 +386,7 @@ export default function CreateWillPage() {
                           placeholder="0x... (Flow wallet address)"
                           value={rule.beneficiaryAddress}
                           onChange={(e) =>
-                            updateRule("beneficiaryAddress", e.target.value)
+                            updateRule('beneficiaryAddress', e.target.value)
                           }
                           required
                         />
@@ -381,8 +404,8 @@ export default function CreateWillPage() {
                           value={rule.percentage}
                           onChange={(e) =>
                             updateRule(
-                              "percentage",
-                              parseInt(e.target.value) || 0
+                              'percentage',
+                              parseInt(e.target.value) || 0,
                             )
                           }
                           required
@@ -401,7 +424,7 @@ export default function CreateWillPage() {
                         id="message"
                         placeholder="A personal message for your beneficiary..."
                         value={rule.message}
-                        onChange={(e) => updateRule("message", e.target.value)}
+                        onChange={(e) => updateRule('message', e.target.value)}
                         rows={3}
                       />
                       <p className="text-xs text-muted-foreground">
@@ -427,13 +450,21 @@ export default function CreateWillPage() {
                         <Select
                           value={rule.inactivityPeriod.toString()}
                           onValueChange={(value) =>
-                            updateRule("inactivityPeriod", parseInt(value))
+                            updateRule('inactivityPeriod', parseFloat(value))
                           }
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Select period" />
                           </SelectTrigger>
                           <SelectContent>
+                            <SelectItem value="0.0007">
+                              1 minute (Debug)
+                            </SelectItem>
+                            <SelectItem value="0.007">
+                              10 minutes (Debug)
+                            </SelectItem>
+                            <SelectItem value="0.04">1 hour (Debug)</SelectItem>
+                            <SelectItem value="1">1 day (Debug)</SelectItem>
                             <SelectItem value="30">
                               30 days (1 month)
                             </SelectItem>
@@ -462,7 +493,7 @@ export default function CreateWillPage() {
                         <Label htmlFor="token">Token Type</Label>
                         <Select
                           value={rule.token}
-                          onValueChange={(value) => updateRule("token", value)}
+                          onValueChange={(value) => updateRule('token', value)}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Select token" />
@@ -486,7 +517,7 @@ export default function CreateWillPage() {
                       className="w-full cursor-pointer hover:bg-green-800 transition-colors duration-200"
                       size="lg"
                     >
-                      {isSubmitting ? "Creating Will " : "Create Will "}
+                      {isSubmitting ? 'Creating Will ' : 'Create Will '}
                     </Button>
                   </div>
                 </form>
