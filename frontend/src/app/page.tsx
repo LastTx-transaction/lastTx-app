@@ -26,7 +26,7 @@ import {
 import Link from "next/link";
 
 export default function Home() {
-  const { user, authenticate, unauthenticate } = useCurrentFlowUser();
+  const { user, authenticate } = useCurrentFlowUser();
 
   return (
     <div className="min-h-screen bg-background">
@@ -63,36 +63,6 @@ export default function Home() {
                 </strong>
                 .
               </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12 animate-fade-in-up delay-200">
-              {user?.loggedIn ? (
-                <div className="flex flex-col sm:flex-row gap-4 items-center">
-                  <div className="bg-accent border border-border rounded-lg px-6 py-3">
-                    <p className="text-accent-foreground font-medium">
-                      ✅ Connected:{" "}
-                      <span className="font-mono text-sm">
-                        {user.addr?.slice(0, 8)}...
-                      </span>
-                    </p>
-                  </div>
-                  <Button variant="outline" onClick={unauthenticate}>
-                    Disconnect Wallet
-                  </Button>
-                  <Link href="/create-will">
-                    <Button className="group">
-                      Create Your Will
-                      <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                    </Button>
-                  </Link>
-                </div>
-              ) : (
-                <Button onClick={authenticate} size="lg" className="group">
-                  <Wallet className="mr-2 h-5 w-5" />
-                  Connect Wallet to Start
-                  <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </Button>
-              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto animate-fade-in-up delay-300">

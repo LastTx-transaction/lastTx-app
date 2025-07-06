@@ -26,7 +26,6 @@ import {
 } from "@/components/ui/select";
 import { Shield, Clock, Mail } from "lucide-react";
 import { UserProfileService } from "@/lib/services/user-profile.service";
-import { emailService } from "@/lib/services/email.service";
 
 interface InheritanceRule {
   beneficiaryAddress: string;
@@ -162,29 +161,60 @@ export default function CreateWillPage() {
         return;
       }
 
-      // Send email notification to will creator
+      // Save to Supabase and schedule with Google Cloud Scheduler
       try {
         if (user?.addr) {
           const userProfile = await UserProfileService.getUserProfile(
             user.addr
           );
-          if (userProfile?.email) {
-            await emailService.sendInheritanceNotification({
-              ownerEmail: userProfile.email,
-              ownerName: userProfile.name || "Will Creator",
-              beneficiaryEmail: rule.beneficiaryEmail,
-              beneficiaryName: rule.beneficiaryName,
-              beneficiaryAddress: rule.beneficiaryAddress,
-              percentage: rule.percentage,
-              willId: transactionId,
-              claimUrl: `${window.location.origin}/claim-will`,
-              message: rule.message,
-            });
+
+          // Calculate execution date based on inactivity period
+          const executionDate = new Date();
+          executionDate.setDate(
+            executionDate.getDate() + rule.inactivityPeriod
+          );
+
+          const willData = {
+            smartContractId: transactionId,
+            dateOfExecution: executionDate.toISOString(),
+            recipientName: rule.beneficiaryName,
+            recipientEmail: rule.beneficiaryEmail,
+            message: rule.message,
+            percentageOfMoney: rule.percentage,
+            ownerAddress: user.addr,
+            ownerEmail: userProfile?.email,
+            ownerName: userProfile?.name || "Will Creator",
+          };
+
+          // Call our API to save and schedule
+          const response = await fetch("/api/create-will", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(willData),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error("API error:", errorData);
+            throw new Error(errorData.error || "Failed to save will data");
           }
+
+          const result = await response.json();
+          console.log("Will saved and scheduled:", result);
         }
-      } catch (emailError) {
-        console.error("Error sending email notification:", emailError);
-        // Don't fail the whole transaction if email fails
+      } catch (error) {
+        console.error("Error saving will data or sending email:", error);
+        // Don't fail the whole transaction if this fails, but log it
+        setNotification({
+          open: true,
+          type: "error",
+          title: "Warning",
+          description:
+            "Will created on blockchain but there was an issue with scheduling. Please contact support.",
+        });
+        return;
       }
 
       setNotification({
