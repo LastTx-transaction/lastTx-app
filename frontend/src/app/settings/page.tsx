@@ -321,6 +321,88 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
+            {/* Email Testing Card */}
+            {profile?.email && (
+              <Card className="mt-6 border-green-200 bg-green-50">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Mail className="h-5 w-5 text-green-600" />
+                    <span className="text-green-800">
+                      Test Email Functionality
+                    </span>
+                  </CardTitle>
+                  <CardDescription className="text-green-700">
+                    Send a test email to verify your email configuration is
+                    working correctly
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center space-x-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={async () => {
+                        if (!profile.email) return;
+
+                        setIsSaving(true);
+                        try {
+                          const { emailService } = await import(
+                            "@/lib/services/email.service"
+                          );
+
+                          const success = await emailService.sendTestEmail(
+                            profile.email
+                          );
+
+                          if (success) {
+                            setResult({
+                              type: "success",
+                              message: `Test email sent successfully to ${profile.email}! Check your inbox.`,
+                            });
+                          } else {
+                            setResult({
+                              type: "error",
+                              message:
+                                "Failed to send test email. Please check your email configuration.",
+                            });
+                          }
+                        } catch (error) {
+                          console.error("Test email error:", error);
+                          setResult({
+                            type: "error",
+                            message: `Failed to send test email: ${
+                              error instanceof Error
+                                ? error.message
+                                : "Unknown error"
+                            }`,
+                          });
+                        } finally {
+                          setIsSaving(false);
+                        }
+                      }}
+                      disabled={isSaving}
+                      className="border-green-300 text-green-700 hover:bg-green-100"
+                    >
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Sending Test Email...
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="h-4 w-4 mr-2" />
+                          Send Test Email
+                        </>
+                      )}
+                    </Button>
+                    <div className="text-sm text-green-700">
+                      to <strong>{profile.email}</strong>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Information Card */}
             <Card className="mt-6 border-blue-200 bg-blue-50">
               <CardContent className="pt-6">

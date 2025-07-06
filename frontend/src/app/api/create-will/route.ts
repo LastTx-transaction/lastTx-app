@@ -2,19 +2,33 @@ import { createClient } from "@supabase/supabase-js";
 import { CloudSchedulerClient } from "@google-cloud/scheduler";
 import { NextRequest, NextResponse } from "next/server";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!; // Assuming you have this as public env
-const supabaseKey = process.env.SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Check if email features are configured
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const hasSupabaseConfig = supabaseUrl && supabaseKey;
 
-// Initialize Google Cloud Scheduler client
-// Use credentials from environment variables for secure deployment
-const schedulerClient = new CloudSchedulerClient({
-  projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
-  credentials: {
-    client_email: process.env.GOOGLE_CLOUD_CLIENT_EMAIL,
-    private_key: process.env.GOOGLE_CLOUD_PRIVATE_KEY!.replace(/\\n/g, "\n"), // Replace \\n with actual newlines
-  },
-});
+const hasGoogleCloudConfig =
+  process.env.GOOGLE_CLOUD_PROJECT_ID &&
+  process.env.GOOGLE_CLOUD_CLIENT_EMAIL &&
+  process.env.GOOGLE_CLOUD_PRIVATE_KEY;
+
+// Only initialize if configured
+const supabase = hasSupabaseConfig
+  ? createClient(supabaseUrl!, supabaseKey!)
+  : null;
+
+const schedulerClient = hasGoogleCloudConfig
+  ? new CloudSchedulerClient({
+      projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
+      credentials: {
+        client_email: process.env.GOOGLE_CLOUD_CLIENT_EMAIL,
+        private_key: process.env.GOOGLE_CLOUD_PRIVATE_KEY!.replace(
+          /\\n/g,
+          "\n"
+        ),
+      },
+    })
+  : null;
 
 interface WillData {
   smartContractId: string;
@@ -30,6 +44,27 @@ interface WillData {
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if email features are configured, fail early if not
+    if (!hasSupabaseConfig) {
+      return NextResponse.json(
+        {
+          error:
+            "Supabase configuration missing. Please configure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_ANON_KEY.",
+        },
+        { status: 500 }
+      );
+    }
+
+    if (!hasGoogleCloudConfig) {
+      return NextResponse.json(
+        {
+          error:
+            "Google Cloud configuration missing. Please configure GOOGLE_CLOUD_PROJECT_ID, GOOGLE_CLOUD_CLIENT_EMAIL, and GOOGLE_CLOUD_PRIVATE_KEY.",
+        },
+        { status: 500 }
+      );
+    }
+
     const willData: WillData = await request.json();
 
     // Validate required fields
@@ -47,7 +82,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Save will data to Supabase
-    const { data: savedWill, error: supabaseError } = await supabase
+    const { data: savedWill, error: supabaseError } = await supabase!
       .from("wills")
       .insert([
         {
@@ -94,7 +129,6 @@ export async function POST(request: NextRequest) {
         executionDate.getMonth() + 1
       } *`;
 
-
       const job = {
         name: fullJobName,
         description: `Execute will for smart contract ${willData.smartContractId} - ONE TIME ONLY`,
@@ -116,7 +150,7 @@ export async function POST(request: NextRequest) {
         timeZone: "UTC", // It's good practice to use UTC for scheduling
       };
 
-      const [createdJob] = await schedulerClient.createJob({
+      const [createdJob] = await schedulerClient!.createJob({
         parent,
         job,
       });
@@ -134,7 +168,7 @@ export async function POST(request: NextRequest) {
 
       // Optionally delete the Supabase record if scheduling fails
       // This ensures data consistency if the scheduling step fails
-      await supabase.from("wills").delete().eq("id", savedWill.id);
+      await supabase!.from("wills").delete().eq("id", savedWill.id);
       console.log(
         `Deleted Supabase record for failed schedule: ${savedWill.id}`
       );

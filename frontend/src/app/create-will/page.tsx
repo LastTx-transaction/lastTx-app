@@ -32,7 +32,7 @@ interface InheritanceRule {
   beneficiaryName: string;
   beneficiaryEmail: string;
   percentage: number;
-  inactivityPeriod: number; // in days
+  inactivityPeriod: number; // in days (can be decimal for minutes/hours)
   token: string;
   message: string;
 }
@@ -209,7 +209,7 @@ export default function CreateWillPage() {
         // Don't fail the whole transaction if this fails, but log it
         setNotification({
           open: true,
-          type: "error",
+          type: "success",
           title: "Warning",
           description:
             "Will created on blockchain but there was an issue with scheduling. Please contact support.",
@@ -221,7 +221,7 @@ export default function CreateWillPage() {
         open: true,
         type: "success",
         title: "Will Created Successfully! 🎉",
-        description: `Your inheritance will has been created. Both you and ${rule.beneficiaryName} have been notified via email.`,
+        description: `Your inheritance will has been created. ${rule.beneficiaryName} will be notified via email for future collection.`,
       });
 
       // Reset form after success
@@ -427,13 +427,20 @@ export default function CreateWillPage() {
                         <Select
                           value={rule.inactivityPeriod.toString()}
                           onValueChange={(value) =>
-                            updateRule("inactivityPeriod", parseInt(value))
+                            updateRule("inactivityPeriod", parseFloat(value))
                           }
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Select period" />
                           </SelectTrigger>
                           <SelectContent>
+                            <SelectItem value="0.000694">
+                              1 minute (Testing)
+                            </SelectItem>
+                            <SelectItem value="0.00347">
+                              5 minutes (Testing)
+                            </SelectItem>
+                            <SelectItem value="1">1 day</SelectItem>
                             <SelectItem value="30">
                               30 days (1 month)
                             </SelectItem>
@@ -445,9 +452,6 @@ export default function CreateWillPage() {
                             </SelectItem>
                             <SelectItem value="365">
                               365 days (1 year)
-                            </SelectItem>
-                            <SelectItem value="730">
-                              730 days (2 years)
                             </SelectItem>
                           </SelectContent>
                         </Select>

@@ -416,12 +416,14 @@ export default function Home() {
                   </span>
                 </AccordionTrigger>
                 <AccordionContent className="text-muted-foreground leading-relaxed">
-                  You create multiple smart contracts, each with different
-                  inactivity periods (like 30 days, 1 year, etc.) and
-                  beneficiaries. If you don&apos;t use your wallet for the
-                  specified time, that specific contract triggers automatically
-                  and transfers the designated percentage of your assets to the
-                  beneficiary. Any wallet activity resets all your timers.
+                  You create smart contracts with different inactivity periods
+                  (like 30 days, 1 year, etc.) and beneficiaries. If you
+                  don&apos;t use your wallet for the specified time, that
+                  contract becomes claimable and allows the beneficiary to
+                  withdraw the designated percentage of your assets. Any wallet
+                  activity resets all your timers. **Important**: No funds are
+                  locked or held in escrow - you maintain full control of your
+                  assets.
                 </AccordionContent>
               </AccordionItem>
 
@@ -435,11 +437,12 @@ export default function Home() {
                   </span>
                 </AccordionTrigger>
                 <AccordionContent className="text-muted-foreground leading-relaxed">
-                  Yes! You have full control over your inheritance contracts.
-                  You can edit beneficiaries, change percentages, modify
-                  inactivity periods, add new rules, or delete existing ones
-                  anytime. You can also manually refresh any timer by simply
-                  using your wallet or clicking the refresh button.
+                  Currently, to modify inheritance rules, you need to delete the
+                  existing contract and create a new one. You can delete
+                  contracts anytime and create new ones with updated
+                  beneficiaries, percentages, or inactivity periods. You can
+                  also manually refresh timers by using your wallet or clicking
+                  the refresh button.
                 </AccordionContent>
               </AccordionItem>
 
@@ -471,11 +474,12 @@ export default function Home() {
                   </span>
                 </AccordionTrigger>
                 <AccordionContent className="text-muted-foreground leading-relaxed">
-                  When an inactivity timer triggers, the smart contract
-                  automatically transfers the designated assets to the
-                  beneficiary&apos;s wallet address. No action is required from
-                  the beneficiary - they simply receive a notification and the
-                  assets appear in their wallet.
+                  When an inactivity timer expires, the beneficiary can claim
+                  their inheritance by connecting their wallet and initiating
+                  the claim. The smart contract then transfers the designated
+                  percentage of assets from your wallet to theirs at the time of
+                  claiming. They receive notifications when inheritance becomes
+                  available.
                 </AccordionContent>
               </AccordionItem>
 
@@ -485,15 +489,17 @@ export default function Home() {
               >
                 <AccordionTrigger className="text-left hover:no-underline">
                   <span className="text-lg font-semibold text-foreground">
-                    What happens to my assets while the contracts are active?
+                    Are my assets locked or held in escrow?
                   </span>
                 </AccordionTrigger>
                 <AccordionContent className="text-muted-foreground leading-relaxed">
-                  Your assets remain completely under your control. You can
-                  spend, trade, or invest them normally. The inheritance
-                  contracts only monitor your wallet activity and trigger
-                  transfers if inactivity periods are exceeded. You maintain
-                  full ownership and control at all times.
+                  **No, absolutely not!** Your assets remain completely under
+                  your control. You can spend, trade, or invest them normally.
+                  The inheritance contracts only monitor your wallet activity
+                  and become claimable if inactivity periods are exceeded. No
+                  funds are ever locked, escrowed, or held by the contract. You
+                  maintain full ownership and control at all times until the
+                  moment a beneficiary claims.
                 </AccordionContent>
               </AccordionItem>
 
