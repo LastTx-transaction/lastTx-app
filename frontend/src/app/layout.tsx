@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { FlowProvider } from "@onflow/kit";
-import flowJson from "../../flow.json";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
+import { FlowProvider } from '@onflow/kit';
+import flowJson from '../../flow.json';
+import Navbar from '@/components/layout/Navbar';
+import Footer from '@/components/layout/Footer';
 
-import "./globals.css";
+import './globals.css';
 
 export default function RootLayout({
   children,
@@ -17,9 +17,9 @@ export default function RootLayout({
       <body className="min-h-screen  bg-background font-sans antialiased">
         <FlowProvider
           config={{
-            accessNodeUrl: "http://localhost:8888",
-            flowNetwork: "emulator",
-            discoveryWallet: "https://fcl-discovery.onflow.org/emulator/authn",
+            accessNodeUrl: 'https://rest-testnet.onflow.org',
+            flowNetwork: 'testnet',
+            discoveryWallet: 'https://fcl-discovery.onflow.org/testnet/authn',
           }}
           flowJson={flowJson}
         >

@@ -1,7 +1,17 @@
 // Cadence scripts for reading data from the blockchain
+import { getContractAddress } from '../flow-config';
 
-export const GET_ACCOUNT_SETUP = `
-import LastTx from 0xf8d6e0586b0a20c7
+// Helper function to replace contract addresses in scripts
+export const replaceContractAddresses = (script: string): string => {
+  return script
+    .replace(/0xLastTx/g, getContractAddress('LastTx'))
+    .replace(/0xFungibleToken/g, getContractAddress('FungibleToken'))
+    .replace(/0xFlowToken/g, getContractAddress('FlowToken'));
+};
+
+// Raw scripts with placeholder addresses
+const GET_ACCOUNT_SETUP_RAW = `
+import LastTx from 0xLastTx
 
 access(all) fun main(account: Address): Bool {
     let cap = getAccount(account).capabilities.get<&LastTx.Collection>(LastTx.LastTxPublicPath)
@@ -9,8 +19,8 @@ access(all) fun main(account: Address): Bool {
 }
 `;
 
-export const GET_LASTTX_IDS = `
-import LastTx from 0xf8d6e0586b0a20c7
+const GET_LASTTX_IDS_RAW = `
+import LastTx from 0xLastTx
 
 access(all) fun main(account: Address): [UInt64] {
     let cap = getAccount(account).capabilities.get<&LastTx.Collection>(LastTx.LastTxPublicPath)
@@ -21,8 +31,8 @@ access(all) fun main(account: Address): [UInt64] {
 }
 `;
 
-export const GET_LASTTX_DETAILS = `
-import LastTx from 0xf8d6e0586b0a20c7
+const GET_LASTTX_DETAILS_RAW = `
+import LastTx from 0xLastTx
 
 access(all) fun main(account: Address, id: UInt64): {String: AnyStruct}? {
     let cap = getAccount(account).capabilities.get<&LastTx.Collection>(LastTx.LastTxPublicPath)
@@ -35,8 +45,8 @@ access(all) fun main(account: Address, id: UInt64): {String: AnyStruct}? {
 }
 `;
 
-export const GET_ALL_LASTTX = `
-import LastTx from 0xf8d6e0586b0a20c7
+const GET_ALL_LASTTX_RAW = `
+import LastTx from 0xLastTx
 
 access(all) fun main(account: Address): {String: AnyStruct} {
     let cap = getAccount(account).capabilities.get<&LastTx.Collection>(LastTx.LastTxPublicPath)
@@ -47,9 +57,19 @@ access(all) fun main(account: Address): {String: AnyStruct} {
 }
 `;
 
+// Export scripts with proper contract addresses
+export const GET_ACCOUNT_SETUP = replaceContractAddresses(
+  GET_ACCOUNT_SETUP_RAW,
+);
+export const GET_LASTTX_IDS = replaceContractAddresses(GET_LASTTX_IDS_RAW);
+export const GET_LASTTX_DETAILS = replaceContractAddresses(
+  GET_LASTTX_DETAILS_RAW,
+);
+export const GET_ALL_LASTTX = replaceContractAddresses(GET_ALL_LASTTX_RAW);
+
 // Alias untuk compatibility dengan service yang sudah ada
-export const GET_ALL_WILLS = `
-import LastTx from 0xf8d6e0586b0a20c7
+const GET_ALL_WILLS_RAW = `
+import LastTx from 0xLastTx
 
 access(all) fun main(accountAddress: Address): {String: AnyStruct} {
     let collectionRef = getAccount(accountAddress)
@@ -74,8 +94,8 @@ access(all) fun main(accountAddress: Address): {String: AnyStruct} {
 }
 `;
 
-export const GET_WILL_DETAIL = `
-import LastTx from 0xf8d6e0586b0a20c7
+const GET_WILL_DETAIL_RAW = `
+import LastTx from 0xLastTx
 
 access(all) fun main(accountAddress: Address, lastTxId: UInt64): {String: AnyStruct}? {
     let collectionRef = getAccount(accountAddress)
@@ -92,8 +112,8 @@ access(all) fun main(accountAddress: Address, lastTxId: UInt64): {String: AnyStr
 }
 `;
 
-export const GET_EXPIRED_LASTTX = `
-import LastTx from 0xf8d6e0586b0a20c7
+const GET_EXPIRED_LASTTX_RAW = `
+import LastTx from 0xLastTx
 
 access(all) fun main(account: Address): [UInt64] {
     let cap = getAccount(account).capabilities.get<&LastTx.Collection>(LastTx.LastTxPublicPath)
@@ -113,8 +133,8 @@ access(all) fun main(account: Address): [UInt64] {
 }
 `;
 
-export const GET_LASTTX_STATS = `
-import LastTx from 0xf8d6e0586b0a20c7
+const GET_LASTTX_STATS_RAW = `
+import LastTx from 0xLastTx
 
 access(all) fun main(): {String: AnyStruct} {
     return {
@@ -123,9 +143,9 @@ access(all) fun main(): {String: AnyStruct} {
 }
 `;
 
-export const GET_ACCOUNT_BALANCE = `
-import FlowToken from 0x0ae53cb6e3f42a79
-import FungibleToken from 0xee82856bf20e2aa6
+const GET_ACCOUNT_BALANCE_RAW = `
+import FlowToken from 0xFlowToken
+import FungibleToken from 0xFungibleToken
 
 access(all) fun main(account: Address): UFix64 {
     let vaultRef = getAccount(account)
@@ -137,8 +157,8 @@ access(all) fun main(account: Address): UFix64 {
 }
 `;
 
-export const GET_USER_PROFILE = `
-import LastTx from 0xf8d6e0586b0a20c7
+const GET_USER_PROFILE_RAW = `
+import LastTx from 0xLastTx
 
 access(all) fun main(userAddress: Address): {String: AnyStruct}? {
     let cap = getAccount(userAddress).capabilities.get<&LastTx.Collection>(LastTx.LastTxPublicPath)
@@ -156,3 +176,15 @@ access(all) fun main(userAddress: Address): {String: AnyStruct}? {
     return nil
 }
 `;
+
+// Export scripts with proper contract addresses
+export const GET_ALL_WILLS = replaceContractAddresses(GET_ALL_WILLS_RAW);
+export const GET_WILL_DETAIL = replaceContractAddresses(GET_WILL_DETAIL_RAW);
+export const GET_EXPIRED_LASTTX = replaceContractAddresses(
+  GET_EXPIRED_LASTTX_RAW,
+);
+export const GET_LASTTX_STATS = replaceContractAddresses(GET_LASTTX_STATS_RAW);
+export const GET_ACCOUNT_BALANCE = replaceContractAddresses(
+  GET_ACCOUNT_BALANCE_RAW,
+);
+export const GET_USER_PROFILE = replaceContractAddresses(GET_USER_PROFILE_RAW);

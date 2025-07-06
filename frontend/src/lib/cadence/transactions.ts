@@ -1,9 +1,19 @@
 // Cadence transactions for modifying blockchain state
+import { getContractAddress } from '../flow-config';
 
-export const CREATE_WILL = `
-import LastTx from 0xf8d6e0586b0a20c7
-import FungibleToken from 0xee82856bf20e2aa6
-import FlowToken from 0x0ae53cb6e3f42a79
+// Helper function to replace contract addresses in transactions
+export const replaceContractAddresses = (transaction: string): string => {
+  return transaction
+    .replace(/0xLastTx/g, getContractAddress('LastTx'))
+    .replace(/0xFungibleToken/g, getContractAddress('FungibleToken'))
+    .replace(/0xFlowToken/g, getContractAddress('FlowToken'));
+};
+
+// Raw transactions with placeholder addresses
+const CREATE_WILL_RAW = `
+import LastTx from 0xLastTx
+import FungibleToken from 0xFungibleToken
+import FlowToken from 0xFlowToken
 
 transaction(
     beneficiaryAddress: Address, 
@@ -50,12 +60,11 @@ transaction(
 }
 `;
 
-export const CLAIM_WILL = `
-import LastTx from 0xf8d6e0586b0a20c7
-import FungibleToken from 0xee82856bf20e2aa6
-import FlowToken from 0x0ae53cb6e3f42a79
+const CLAIM_WILL_RAW = `
+import LastTx from 0xLastTx
+import FungibleToken from 0xFungibleToken
+import FlowToken from 0xFlowToken
 
-transaction(ownerAddress: Address, lastTxId: UInt64) {
     
     let beneficiaryVault: &FlowToken.Vault
     let lastTxCollection: &LastTx.Collection
@@ -85,8 +94,8 @@ transaction(ownerAddress: Address, lastTxId: UInt64) {
 }
 `;
 
-export const UPDATE_WILL = `
-import LastTx from 0xf8d6e0586b0a20c7
+const UPDATE_WILL_RAW = `
+import LastTx from 0xLastTx
 
 transaction(
     id: UInt64, 
@@ -124,8 +133,8 @@ transaction(
 }
 `;
 
-export const DELETE_WILL = `
-import LastTx from 0xf8d6e0586b0a20c7
+const DELETE_WILL_RAW = `
+import LastTx from 0xLastTx
 
 transaction(id: UInt64) {
     let collection: &LastTx.Collection
@@ -142,8 +151,8 @@ transaction(id: UInt64) {
 }
 `;
 
-export const SEND_ACTIVITY_PULSE = `
-import LastTx from 0xf8d6e0586b0a20c7
+const SEND_ACTIVITY_PULSE_RAW = `
+import LastTx from 0xLastTx
 
 transaction(lastTxId: UInt64) {
     let collectionRef: &LastTx.Collection
@@ -164,8 +173,8 @@ transaction(lastTxId: UInt64) {
 }
 `;
 
-export const SETUP_USER_PROFILE = `
-import LastTx from 0xf8d6e0586b0a20c7
+const SETUP_USER_PROFILE_RAW = `
+import LastTx from 0xLastTx
 
 transaction(email: String?, name: String?) {
     let collection: &LastTx.Collection
@@ -192,3 +201,15 @@ transaction(email: String?, name: String?) {
     }
 }
 `;
+
+// Export transactions with proper contract addresses
+export const CREATE_WILL = replaceContractAddresses(CREATE_WILL_RAW);
+export const CLAIM_WILL = replaceContractAddresses(CLAIM_WILL_RAW);
+export const UPDATE_WILL = replaceContractAddresses(UPDATE_WILL_RAW);
+export const DELETE_WILL = replaceContractAddresses(DELETE_WILL_RAW);
+export const SEND_ACTIVITY_PULSE = replaceContractAddresses(
+  SEND_ACTIVITY_PULSE_RAW,
+);
+export const SETUP_USER_PROFILE = replaceContractAddresses(
+  SETUP_USER_PROFILE_RAW,
+);

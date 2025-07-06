@@ -68,7 +68,6 @@ export default function CreateWillPage() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [, setShowEmailPrompt] = useState(false);
   const [currentPercentage, setCurrentPercentage] = useState<number>(0);
   const [loadingPercentage, setLoadingPercentage] = useState(false);
 

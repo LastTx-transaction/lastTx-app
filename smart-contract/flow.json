@@ -1,36 +1,62 @@
 {
-	"contracts": {
-		"LastTx": {
-			"source": "contracts/LastTx.cdc",
-			"aliases": {
-				"testing": "0000000000000007"
-			}
-		}
-	},
-	"networks": {
-		"emulator": "127.0.0.1:3569",
-		"mainnet": "access.mainnet.nodes.onflow.org:9000",
-		"testing": "127.0.0.1:3569",
-		"testnet": "access.devnet.nodes.onflow.org:9000"
-	},
-	"accounts": {
-		"emulator-account": {
-			"address": "f8d6e0586b0a20c7",
-			"key": {
-				"type": "file",
-				"location": "emulator-account.pkey"
-			}
-		},
-		"test-account-1": {
-			"address": "179b6b1cb6755e31",
-			"key": "92a4923c6ca22702f5f032e92560252f0d050e76dcd49fef49e9d53194a88234"
-		}
-	},
-	"deployments": {
-		"emulator": {
-			"emulator-account": [
-				"LastTx"
-			]
-		}
-	}
+  "contracts": {
+    "LastTx": {
+      "source": "contracts/LastTx.cdc",
+      "aliases": {
+        "testing": "0000000000000007",
+        "emulator": "f8d6e0586b0a20c7",
+        "testnet": "bc9f801a100be393"
+      }
+    },
+    "FungibleToken": {
+      "source": "",
+      "aliases": {
+        "emulator": "ee82856bf20e2aa6",
+        "testnet": "9a0766d93b6608b7",
+        "mainnet": "f233dcee88fe0abe"
+      }
+    },
+    "FlowToken": {
+      "source": "",
+      "aliases": {
+        "emulator": "0ae53cb6e3f42a79",
+        "testnet": "7e60df042a9c0868",
+        "mainnet": "1654653399040a61"
+      }
+    }
+  },
+  "networks": {
+    "emulator": "127.0.0.1:3569",
+    "mainnet": "access.mainnet.nodes.onflow.org:9000",
+    "testing": "127.0.0.1:3569",
+    "testnet": "access.devnet.nodes.onflow.org:9000"
+  },
+  "accounts": {
+    "emulator-account": {
+      "address": "f8d6e0586b0a20c7",
+      "key": {
+        "type": "file",
+        "location": "emulator-account.pkey"
+      }
+    },
+    "lasttx-testnet": {
+      "address": "bc9f801a100be393",
+      "key": {
+        "type": "file",
+        "location": "lasttx-testnet.pkey"
+      }
+    },
+    "test-account-1": {
+      "address": "179b6b1cb6755e31",
+      "key": "92a4923c6ca22702f5f032e92560252f0d050e76dcd49fef49e9d53194a88234"
+    }
+  },
+  "deployments": {
+    "emulator": {
+      "emulator-account": ["LastTx"]
+    },
+    "testnet": {
+      "lasttx-testnet": ["LastTx"]
+    }
+  }
 }
