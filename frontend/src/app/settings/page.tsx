@@ -224,7 +224,7 @@ export default function SettingsPage() {
                       </p>
                     </div>
 
-                    {/* Name */}
+                    {/* Owner Name */}
                     <div className="space-y-2">
                       <Label htmlFor="name" className="flex items-center gap-2">
                         <User className="h-4 w-4" />

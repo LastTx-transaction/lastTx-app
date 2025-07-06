@@ -32,6 +32,7 @@ const schedulerClient = hasGoogleCloudConfig
 
 interface WillData {
   smartContractId: string;
+  willId?: number; // Optional will ID from smart contract (auto-incrementing number)
   dateOfExecution: string; // ISO date string
   recipientName: string;
   recipientEmail: string;
@@ -44,25 +45,13 @@ interface WillData {
 
 export async function POST(request: NextRequest) {
   try {
-    // Check if email features are configured, fail early if not
-    if (!hasSupabaseConfig) {
-      return NextResponse.json(
-        {
-          error:
-            "Supabase configuration missing. Please configure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_ANON_KEY.",
-        },
-        { status: 500 }
-      );
-    }
-
-    if (!hasGoogleCloudConfig) {
-      return NextResponse.json(
-        {
-          error:
-            "Google Cloud configuration missing. Please configure GOOGLE_CLOUD_PROJECT_ID, GOOGLE_CLOUD_CLIENT_EMAIL, and GOOGLE_CLOUD_PRIVATE_KEY.",
-        },
-        { status: 500 }
-      );
+    // Early return if neither email features are configured
+    if (!hasSupabaseConfig || !hasGoogleCloudConfig) {
+      return NextResponse.json({
+        success: true,
+        message:
+          "Will created successfully. Email notifications are not configured.",
+      });
     }
 
     const willData: WillData = await request.json();
@@ -82,23 +71,41 @@ export async function POST(request: NextRequest) {
     }
 
     // Save will data to Supabase
+    const willInsertData: {
+      smart_contract_id: string;
+      date_of_execution: string;
+      recipient_name: string;
+      recipient_email: string;
+      message: string;
+      percentage_of_money: number;
+      owner_address: string;
+      owner_email?: string;
+      owner_name?: string;
+      status: string;
+      created_at: string;
+      will_id?: string;
+    } = {
+      smart_contract_id: willData.smartContractId,
+      date_of_execution: willData.dateOfExecution,
+      recipient_name: willData.recipientName,
+      recipient_email: willData.recipientEmail,
+      message: willData.message,
+      percentage_of_money: willData.percentageOfMoney,
+      owner_address: willData.ownerAddress,
+      owner_email: willData.ownerEmail,
+      owner_name: willData.ownerName,
+      status: "active",
+      created_at: new Date().toISOString(),
+    };
+
+    // Include willId if provided (convert number to string for Supabase)
+    if (willData.willId) {
+      willInsertData.will_id = willData.willId.toString();
+    }
+
     const { data: savedWill, error: supabaseError } = await supabase!
       .from("wills")
-      .insert([
-        {
-          smart_contract_id: willData.smartContractId,
-          date_of_execution: willData.dateOfExecution,
-          recipient_name: willData.recipientName,
-          recipient_email: willData.recipientEmail,
-          message: willData.message,
-          percentage_of_money: willData.percentageOfMoney,
-          owner_address: willData.ownerAddress,
-          owner_email: willData.ownerEmail,
-          owner_name: willData.ownerName,
-          status: "active",
-          created_at: new Date().toISOString(),
-        },
-      ])
+      .insert([willInsertData])
       .select()
       .single();
 
@@ -125,8 +132,9 @@ export async function POST(request: NextRequest) {
 
       // Use standard cron format but we'll handle one-time execution in the Edge Function
       // Format: MINUTE HOUR DAY_OF_MONTH MONTH DAY_OF_WEEK
-      const cronExpression = `${executionDate.getMinutes()} ${executionDate.getHours()} ${executionDate.getDate()} ${
-        executionDate.getMonth() + 1
+      // IMPORTANT: Use UTC methods since timeZone is set to UTC
+      const cronExpression = `${executionDate.getUTCMinutes()} ${executionDate.getUTCHours()} ${executionDate.getUTCDate()} ${
+        executionDate.getUTCMonth() + 1
       } *`;
 
       const job = {

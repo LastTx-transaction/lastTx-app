@@ -252,7 +252,7 @@ export default function Home() {
                 <Users className="h-10 w-10 text-primary" />
               </div>
               <h3 className="text-xl font-semibold mb-4 text-foreground">
-                3. Automatic Protection
+                3. Automatic Distribution
               </h3>
               <p className="text-muted-foreground">
                 If you don&apos;t interact with your wallet for the specified
@@ -309,7 +309,7 @@ export default function Home() {
                     Sustainable
                   </h4>
                   <p className="text-sm text-muted-foreground">
-                    Carbon-negative blockchain with proof-of-stake
+                    Ensures that your wallet fund will never be truly lost
                   </p>
                 </div>
 
@@ -318,10 +318,10 @@ export default function Home() {
                     <Server className="h-6 w-6 text-purple-500" />
                   </div>
                   <h4 className="font-semibold text-foreground mb-2">
-                    Enterprise Ready
+                    Non-Custodial
                   </h4>
                   <p className="text-sm text-muted-foreground">
-                    Audited contracts with institutional security
+                    Your funds never leave your wallet - always accessible
                   </p>
                 </div>
               </div>
@@ -339,23 +339,23 @@ export default function Home() {
                         Smart Contract Security
                       </h4>
                       <p className="text-muted-foreground">
-                        Immutable & Transparent
+                        Flexible & Transparent
                       </p>
                     </div>
                   </div>
 
                   <p className="text-muted-foreground mb-6 leading-relaxed">
                     Your digital will is protected by Flow&apos;s robust smart
-                    contract architecture. Once deployed, your inheritance
-                    instructions become immutable and automatically executable,
-                    ensuring your wishes are carried out exactly as specified.
+                    contract architecture. Once deployed, you can still access
+                    your fund as needed. Ensuring your wills are only transfered
+                    out when the final trigger happen.
                   </p>
 
                   <div className="space-y-3">
                     <div className="flex items-center">
                       <div className="w-2 h-2 rounded-full bg-green-500 mr-3"></div>
                       <span className="text-sm text-muted-foreground">
-                        Audited smart contracts
+                        Funds stay in your wallet
                       </span>
                     </div>
                     <div className="flex items-center">
@@ -421,9 +421,12 @@ export default function Home() {
                   don&apos;t use your wallet for the specified time, that
                   contract becomes claimable and allows the beneficiary to
                   withdraw the designated percentage of your assets. Any wallet
-                  activity resets all your timers. **Important**: No funds are
-                  locked or held in escrow - you maintain full control of your
-                  assets.
+                  activity resets all your timers.
+                  <br />
+                  <strong>
+                    Important: No funds are locked or held in escrow - you
+                    maintain full control of your assets.
+                  </strong>
                 </AccordionContent>
               </AccordionItem>
 
@@ -437,12 +440,8 @@ export default function Home() {
                   </span>
                 </AccordionTrigger>
                 <AccordionContent className="text-muted-foreground leading-relaxed">
-                  Currently, to modify inheritance rules, you need to delete the
-                  existing contract and create a new one. You can delete
-                  contracts anytime and create new ones with updated
-                  beneficiaries, percentages, or inactivity periods. You can
-                  also manually refresh timers by using your wallet or clicking
-                  the refresh button.
+                  You can modify existing contract by clicking the update button
+                  in the my-wills page.
                 </AccordionContent>
               </AccordionItem>
 
@@ -493,13 +492,13 @@ export default function Home() {
                   </span>
                 </AccordionTrigger>
                 <AccordionContent className="text-muted-foreground leading-relaxed">
-                  **No, absolutely not!** Your assets remain completely under
-                  your control. You can spend, trade, or invest them normally.
-                  The inheritance contracts only monitor your wallet activity
-                  and become claimable if inactivity periods are exceeded. No
-                  funds are ever locked, escrowed, or held by the contract. You
-                  maintain full ownership and control at all times until the
-                  moment a beneficiary claims.
+                  <strong>No, absolutely not!</strong> Your assets remain
+                  completely under your control. You can spend, trade, or invest
+                  them normally. The inheritance contracts only monitor your
+                  wallet activity and become claimable if inactivity periods are
+                  exceeded. No funds are ever locked, escrowed, or held by the
+                  contract. You maintain full ownership and control at all times
+                  until the moment a beneficiary claims.
                 </AccordionContent>
               </AccordionItem>
 
