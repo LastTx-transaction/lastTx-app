@@ -17,11 +17,11 @@ The integration was achieved using Flow's Cadence smart contract language and Fl
 ## Team
 
 - **Azzam** - Full Stack Developer
-  - GitHub: [@azzam](https://github.com/m-azzam-azis)
-  - LinkedIn: [@azzam](https://www.linkedin.com/in/m-azzam-azis/)
+  - GitHub: [m-azzam-azis](https://github.com/m-azzam-azis)
+  - LinkedIn: [m-azzam-azis](https://www.linkedin.com/in/m-azzam-azis/)
 - **Daffa Rafi** - Full Stack Developer
-  - GitHub: [@daffarafi](https://github.com/daffarafi)
-  - GitHub: [@daffarafi](https://www.linkedin.com/in/daffa-rafi/)
+  - GitHub: [daffarafi](https://github.com/daffarafi)
+  - Linkedin: [daffarafi](https://www.linkedin.com/in/daffa-rafi/)
 
 ## Tech Stack
 
