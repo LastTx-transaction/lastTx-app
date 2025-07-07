@@ -54,6 +54,10 @@ The integration was achieved using Flow's Cadence smart contract language and Fl
 - 📊 **Dashboard**: View and manage all created inheritance wills
 - 🛡️ **Security First**: You maintain full control of your private keys and assets
 
+## Important:
+
+You might need to allow cookies on some browsers. This might be the cause for `Application error: a client-side exception...`
+
 ## Quick Start
 
 ### Prerequisites
