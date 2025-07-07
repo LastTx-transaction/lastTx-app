@@ -76,9 +76,10 @@ export async function POST(request: NextRequest) {
     // Background operations - don't block the response
     Promise.resolve().then(async () => {
       try {
-        let actualTransactionId = willData.smartContractId;
+        const newTransactionId = willData.smartContractId; // This is the NEW transaction ID (will-3)
 
-        // If we don't have the transaction ID, try to fetch it from Supabase using willId
+        // Find the OLD transaction ID from Supabase to use for scheduler job naming
+        let oldTransactionId = newTransactionId; // fallback to new ID
         if (willData.willId && hasSupabaseConfig && supabase) {
           try {
             const { data: willRecord } = await supabase
@@ -86,14 +87,15 @@ export async function POST(request: NextRequest) {
               .select("smart_contract_id")
               .eq("will_id", willData.willId.toString())
               .eq("owner_address", willData.ownerAddress)
+              .eq("status", "active")
               .single();
 
             if (willRecord?.smart_contract_id) {
-              actualTransactionId = willRecord.smart_contract_id;
+              oldTransactionId = willRecord.smart_contract_id; // This should be the long hash
             }
           } catch (error) {
             console.error(
-              "Error fetching transaction ID from Supabase:",
+              "Error fetching old transaction ID from Supabase:",
               error
             );
             // Continue with the provided smartContractId
@@ -138,7 +140,7 @@ export async function POST(request: NextRequest) {
           await supabase
             .from("wills")
             .update(updateData)
-            .eq("smart_contract_id", actualTransactionId)
+            .eq("smart_contract_id", oldTransactionId) // Use old transaction ID to find the record
             .eq("owner_address", willData.ownerAddress)
             .eq("status", "active");
         }
@@ -148,7 +150,8 @@ export async function POST(request: NextRequest) {
           const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID!;
           const location = process.env.GOOGLE_CLOUD_LOCATION || "us-central1";
           const parent = `projects/${projectId}/locations/${location}`;
-          const jobName = `will-execution-${actualTransactionId}`;
+          // Use the OLD transaction ID for scheduler job name (maintain same identity)
+          const jobName = `will-execution-${oldTransactionId}`;
           const fullJobName = `${parent}/jobs/${jobName}`;
 
           // Delete existing job if it exists
@@ -158,14 +161,14 @@ export async function POST(request: NextRequest) {
             // Job might not exist, which is fine
           }
 
-          // Create new job with updated execution time
+          // Create new job with updated execution time using the SAME job name
           const cronExpression = `${newExecutionDate.getUTCMinutes()} ${newExecutionDate.getUTCHours()} ${newExecutionDate.getUTCDate()} ${
             newExecutionDate.getUTCMonth() + 1
           } *`;
 
           const job = {
-            name: fullJobName,
-            description: `Execute will for smart contract ${actualTransactionId} - ONE TIME ONLY`,
+            name: fullJobName, // Same name as the deleted job
+            description: `Execute will for smart contract ${oldTransactionId} - ONE TIME ONLY`,
             httpTarget: {
               uri: `${supabaseUrl}/functions/v1/send-email`,
               httpMethod: "POST" as const,
@@ -175,7 +178,7 @@ export async function POST(request: NextRequest) {
               },
               body: Buffer.from(
                 JSON.stringify({
-                  id: actualTransactionId,
+                  id: oldTransactionId, // Use the OLD transaction ID for email function
                   jobName: jobName,
                 })
               ).toString("base64"),
