@@ -1,175 +1,206 @@
-# LastTx - Digital Inheritance System
+# LastTx - Blockchain Inheritance System
 
-A complete monorepo for LastTx digital inheritance platform, combining Flow blockchain smart contracts with a modern Next.js frontend.
+A decentralized inheritance platform that automatically transfers crypto assets to designated beneficiaries after a specified period of wallet inactivity.
 
-## 🏗️ Project Structure
+## Flow Integration
 
-```
-LastTx-app/
-├── smart-contract/        # Flow blockchain contracts & scripts
-│   ├── contracts/         # Cadence smart contracts
-│   ├── scripts/           # Read-only blockchain scripts
-│   ├── transactions/      # Blockchain transactions
-│   ├── flow.json         # Flow configuration
-│   └── setup.sh          # Deployment setup script
-│
-├── frontend/             # Next.js web application
-│   ├── src/              # Application source code
-│   ├── public/           # Static assets
-│   └── package.json      # Frontend dependencies
-│
-└── README.md             # This file
-```
+This project integrates with the **Flow blockchain** to create smart contracts that:
 
-## 🚀 Quick Start
+- Monitor wallet activity for specified inactivity periods
+- Track percentage of assets designated for inheritance (not locked or escrowed)
+- Automatically enable inheritance claims when deadlines pass
+- Notify beneficiaries through email when they can claim assets
+- **Important**: Your assets remain fully under your control - no funds are locked or escrowed
+
+The integration was achieved using Flow's Cadence smart contract language and Flow Client Library for seamless blockchain interactions from our Next.js frontend.
+
+## Team
+
+- **Azzam** - Full Stack Developer
+  - GitHub: [@azzam](https://github.com/m-azzam-azis)
+  - LinkedIn: [@azzam](https://www.linkedin.com/in/m-azzam-azis/)
+- **Daffa Rafi** - Full Stack Developer
+  - GitHub: [@daffarafi](https://github.com/daffarafi)
+  - GitHub: [@daffarafi](https://www.linkedin.com/in/daffa-rafi/)
+
+## Tech Stack
+
+### Frontend
+
+- **Next.js 14** - React framework with App Router
+- **TypeScript** - Type-safe development
+- **Tailwind CSS** - Utility-first CSS framework
+
+### Blockchain
+
+- **Flow Blockchain** - Layer-1 blockchain for smart contracts
+- **Cadence** - Flow's smart contract programming language
+- **Flow Client Library** - JavaScript SDK for Flow integration
+
+### Backend & Infrastructure
+
+- **Supabase** - PostgreSQL database and Edge Functions
+- **Google Cloud Scheduler** - Automated task scheduling
+- **SendGrid** - Email delivery service
+- **Vercel** - Deployment platform
+
+## Features
+
+- 🔐 **Secure Smart Contracts**: Inheritance logic secured on Flow blockchain
+- 💰 **Non-Custodial**: Your funds remain completely under your control - no escrow or locking
+- ⏰ **Automated Execution**: Google Cloud Scheduler triggers inheritance transfers
+- 📧 **Email Notifications**: Beneficiaries receive beautiful inheritance notifications
+- 🎯 **Activity Monitoring**: Tracks wallet activity to determine inactivity periods
+- 📊 **Dashboard**: View and manage all created inheritance wills
+- 🛡️ **Security First**: You maintain full control of your private keys and assets
+
+## Quick Start
 
 ### Prerequisites
-- [Flow CLI](https://docs.onflow.org/flow-cli/install/) installed
-- [Node.js](https://nodejs.org/) (v18 or higher)
 
-### Setup
+- Node.js 18+ and npm
+- Flow CLI (for smart contract deployment)
+- Git
 
-```bash
-# 1. Clone and navigate to project
-cd LastTx-app
+### Installation
 
-# 2. Setup smart contracts
-cd smart-contract
-chmod +x setup.sh
-./setup.sh
+1. **Clone the repository**
 
-# 3. Setup frontend (in new terminal)
-cd frontend
-npm install
-npm run dev
-```
+   ```bash
+   git clone https://github.com/LastTx-transaction/lastTx-app
+   cd lastTx-app
+   ```
 
-This will:
-1. Start Flow emulator
-2. Deploy LastTx smart contracts
-3. Install frontend dependencies  
-4. Start development server at http://localhost:3000
+2. **Smart contract setup**
 
-### Manual Setup
+   ```bash
+   cd smart-contract
 
-#### 1. Smart Contract Development
+   # Setup local flow emulator
+   flow emulator start
 
-```bash
-cd smart-contract
+   # Setup wallet (in different terminal)
+   flow dev-wallet
 
-# Install Flow CLI (if not installed)
-# Windows: winget install --id=Dapper.FlowCLI -e
-# macOS: brew install flow-cli
+   # Deploy smart contracts locally (different terminal)
+   flow project deploy
+   ```
 
-# Start Flow emulator
-flow emulator start
+3. **Frontend setup** (different terminal)
 
-# Deploy contracts (in new terminal)
-flow project deploy --network emulator
-```
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
 
-#### 2. Frontend Development
+4. **Set up environment variables**
 
-```bash
-cd frontend
+   ```bash
+   cp .env.example .env.local
+   ```
 
-# Install dependencies
-npm install
+5. **Optional Email Features**
+   Add these to enable email notifications after inheritance execution:
 
-# Start development server
-npm run dev
-```
+   ```env
+   # Supabase (Optional - for email notifications)
+   NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+   SUPABASE_ANON_KEY=your-supabase-anon-key
 
-Open [http://localhost:3000](http://localhost:3000) to see the application.
+   # Google Cloud Scheduler (Optional - for automated execution)
+   GOOGLE_CLOUD_PROJECT_ID=your-project-id
+   GOOGLE_CLOUD_CLIENT_EMAIL=your-service-account-email
+   GOOGLE_CLOUD_PRIVATE_KEY=your-service-account-private-key
+   GOOGLE_CLOUD_LOCATION=us-central1
+   ```
 
-## 🛠️ Development Workflow
+6. **Open your browser**
+   Navigate to [http://localhost:3000](http://localhost:3000)
 
-### Smart Contract Changes
-1. Edit contracts in `smart-contract/contracts/`
-2. Test with `flow test`
-3. Deploy to emulator with `flow project deploy`
+## No-Notification Setup (Quickest Way)
 
-### Frontend Changes
-1. Edit React components in `frontend/src/`
-2. View changes at `http://localhost:3000`
-3. Build for production with `npm run build`
+If you want to test just the core blockchain functionality without email features:
 
-## 📦 Technology Stack
+1. Follow steps 1-4 above (skip step 5)
+2. The app will work perfectly for creating inheritance smart contracts
+3. You'll see a success message noting that email features are disabled
 
-- **Blockchain**: Flow blockchain with Cadence smart contracts
-- **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS
-- **Web3 Integration**: @onflow/fcl for blockchain interaction
-- **UI Components**: shadcn/ui with Radix UI primitives
-- **Tools**: ESLint, PostCSS, date-fns
+**Note**: Without email configuration, beneficiaries won't receive automatic notifications. They'll need to check and claim their inheritance manually.
 
-## 🔧 Integration Features
+## Full Setup with Email Notifications
 
-### Smart Contract Integration
-- ✅ LastTx smart contract deployed on Flow emulator
-- ✅ Cadence scripts for reading blockchain data
-- ✅ Cadence transactions for write operations
-- ✅ Flow FCL configuration for wallet connection
-- ✅ TypeScript service layer for blockchain interactions
+### Supabase Setup
 
-### Frontend Features
-- ✅ Wallet authentication with Flow FCL
-- ✅ Dashboard showing LastTx status and statistics
-- ✅ Real-time data from smart contracts
-- ✅ Create and manage inheritance contracts
-- ✅ Activity pulse and fund management
-- ✅ Modern responsive UI with Tailwind CSS
+1. Create a [Supabase](https://supabase.com) project
+2. Run the SQL schema:
+   ```sql
+   -- Copy content from supabase-schema.sql and run in Supabase SQL Editor
+   ```
+3. Get your project URL and anon key from Settings > API
+4. create an edge function called `send-email`. Copy the content from `/frontend/supabase/edge-function/index.ts` and uncomment the code
 
-### Ready-to-Use Components
-- `AuthButton` - Wallet connection component
-- `LastTxCard` - Display LastTx details with actions
-- `LastTxService` - Service layer for blockchain operations
-- Custom hooks: `useAuth`, `useLastTx`
+### Google Cloud Setup
 
-## 🔗 Useful Commands
+1. Create a Google Cloud project
+2. Enable Cloud Scheduler API
+3. Create a service account with `Cloud Scheduler Admin` role
+4. Download the service account JSON key
+5. Add the credentials to your `.env.local`
 
-```bash
-# Smart Contract Development
-cd smart-contract
-flow emulator start              # Start Flow emulator
-flow project deploy --network emulator  # Deploy contracts
-./setup.sh                      # Full setup and deployment
+### SendGrid Setup (for Supabase Edge Function)
 
-# Frontend Development  
-cd frontend
-npm run dev                     # Development server
-npm run build                   # Production build
-npm run lint                    # Run linting
-npm run start                   # Start production server
-```
+1. Create a [SendGrid](https://sendgrid.com) account
+2. Get your API key
+3. Add it to your Supabase project secrets
 
-## 🌐 Accessing the Application
+## Usage
 
-Once everything is running:
+### Creating an Inheritance Will
 
-1. **Frontend**: http://localhost:3000
-2. **Flow Emulator**: http://localhost:8080  
-3. **Dev Wallet**: http://localhost:8701/fcl/authn
+1. **Connect Wallet**: Connect your Flow wallet
+2. **Set Beneficiary**: Add recipient's name, email, and wallet address
+3. **Configure Terms**: Set inheritance percentage and inactivity period
+4. **Add Message**: Optional personal message for the beneficiary
+5. **Deploy**: Create and deploy the smart contract
+6. **Schedule**: (Optional) Set up automated email notifications
 
-### First Time Setup:
-1. Run the setup commands above
-2. Open http://localhost:3000
-3. Click "Connect Wallet" 
-4. Use Flow Dev Wallet to create/connect account
-5. Click "Setup Account" when prompted
-6. Start creating your digital inheritance contracts!
+### Managing Wills
 
-## 📚 Documentation
+- View all your created wills in the "My Wills" dashboard
+- Monitor status: Active, Expired, or Claimed
+- Track execution dates and beneficiary information
+- Delete and recreate wills as needed (editing requires deletion and recreation)
+- Send activity pulses to reset inactivity timers
 
-- [Flow Documentation](https://developers.flow.com/)
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Cadence Language Reference](https://docs.onflow.org/cadence/)
+### For Beneficiaries
 
-## 🤝 Contributing
+When an inheritance becomes claimable:
 
-1. Make changes in the appropriate directory (`smart-contract/` or `frontend/`)
-2. Test your changes locally
-3. Submit pull request with clear description
+1. Beneficiaries receive an email notification (if configured)
+2. They can claim their inheritance using the provided link
+3. Assets are transferred from the owner's wallet at the time of claiming
+4. **Important**: The owner retains full control of their assets until the moment of claiming
 
-## 📄 License
+## Future Plans
 
-This project is part of the LastTx digital inheritance system.
+- [ ] Mobile app development
+- [ ] Cross-chain compatibility (Ethereum, Polygon)
+- [ ] NFT inheritance support
+- [ ] Advanced analytics dashboard
+
+## Contributing
+
+We welcome contributions!
+
+## Support
+
+- Email: m.azzam.azis@gmail.com
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+**Disclaimer**: This is experimental software. Use at your own risk. Always test thoroughly on testnets before using with real assets.
