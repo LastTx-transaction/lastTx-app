@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useCurrentFlowUser } from '@onflow/kit';
-import { Button } from '@/components/ui/button';
+import { useCurrentFlowUser } from "@onflow/kit";
+import { Button } from "@/components/ui/button";
 import {
   Shield,
   Users,
@@ -14,16 +14,16 @@ import {
   Leaf,
   Code,
   Server,
-} from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Sparkles } from 'lucide-react';
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Sparkles } from "lucide-react";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from '@/components/ui/accordion';
-import Link from 'next/link';
+} from "@/components/ui/accordion";
+import Link from "next/link";
 
 export default function Home() {
   const { user, authenticate, unauthenticate } = useCurrentFlowUser();
@@ -34,7 +34,7 @@ export default function Home() {
       <section className="relative bg-gradient-to-br from-primary/10 via-secondary/5 to-background overflow-hidden">
         <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-24 lg:py-32">
           <div className="text-center">
             <div className="animate-fade-in-up">
               <Badge
@@ -51,13 +51,13 @@ export default function Home() {
                 Secure Your Digital Legacy with Smart Inheritance
               </p>
               <p className="text-lg md:text-xl mb-8 text-muted-foreground max-w-3xl mx-auto">
-                Create smart contracts that automatically{' '}
+                Create smart contracts that automatically{" "}
                 <span className="text-yellow-500 font-bold">
                   inherit your crypto assets
-                </span>{' '}
+                </span>{" "}
                 to beneficiaries if you don&apos;t interact with your wallet for
                 specified periods. You stay in control while ensuring your loved
-                ones are protected if anything happens. Powered by{' '}
+                ones are protected if anything happens. Powered by{" "}
                 <strong className="text-green-500 font-bold">
                   Flow blockchain security
                 </strong>
@@ -70,7 +70,7 @@ export default function Home() {
                 <div className="flex flex-col sm:flex-row gap-4 items-center">
                   <div className="bg-accent border border-border rounded-lg px-6 py-3">
                     <p className="text-accent-foreground font-medium">
-                      ✅ Connected:{' '}
+                      ✅ Connected:{" "}
                       <span className="font-mono text-sm">
                         {user.addr?.slice(0, 8)}...
                       </span>
@@ -224,8 +224,8 @@ export default function Home() {
               </div>
               <p className="text-lg text-muted-foreground">
                 <strong className="text-primary">Last Tx</strong> ensures your
-                crypto doesn&apos;t join these statistics. Our inactivity-based{' '}
-                <strong className="text-primary">inheritance system</strong>{' '}
+                crypto doesn&apos;t join these statistics. Our inactivity-based{" "}
+                <strong className="text-primary">inheritance system</strong>{" "}
                 provides automatic protection while keeping you in complete
                 control.
               </p>
@@ -413,9 +413,6 @@ export default function Home() {
                       <span className="text-sm font-medium text-foreground">
                         Powered by Flow
                       </span>
-                      <Badge variant="outline" className="text-xs">
-                        Blockchain ✨
-                      </Badge>
                     </div>
                   </div>
                 </div>

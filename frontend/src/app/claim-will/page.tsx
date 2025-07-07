@@ -1,32 +1,30 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useLastTx } from '@/lib/hooks/useLastTx';
-import { useAuth } from '@/lib/hooks/useAuth';
-import { AuthRequired } from '@/components/auth/AuthButton';
-import { LastTxService } from '@/lib/lasttx-service';
-import { Button } from '@/components/ui/button';
+import { useState, useEffect } from "react";
+import { useLastTx } from "@/lib/hooks/useLastTx";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { AuthRequired } from "@/components/auth/AuthButton";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Users,
   AlertCircle,
   CheckCircle,
   Bell,
   Gift,
-  ExternalLink,
   DollarSign,
-} from 'lucide-react';
+} from "lucide-react";
 
 export default function ClaimWillPage() {
   const { user, isAuthenticated } = useAuth();
-  const { expiredLastTxs, refresh } = useLastTx();
+  const { expiredWills, claimWill, refresh } = useLastTx();
   const [isMounted, setIsMounted] = useState(false);
   const [claiming, setClaiming] = useState<string | null>(null);
 
@@ -34,84 +32,82 @@ export default function ClaimWillPage() {
     setIsMounted(true);
   }, []);
 
-  // Convert expired LastTx contracts to notification format
-  const notifications = expiredLastTxs
-    .map((lastTx, index) => {
+  // Convert expired wills to notification format
+  const notifications = expiredWills
+    .map((will, index) => {
       const id = `notification_${index}`;
-      const beneficiary = lastTx.beneficiaries.find(
-        (b) => b.address === user?.addr,
+      const beneficiary = will.beneficiaries.find(
+        (b) => b.address === user?.addr
       );
 
       if (!beneficiary) return null;
 
       return {
         id,
-        type: 'inheritance_available' as const,
-        fromName: `Creator ${lastTx.id?.slice(0, 8) ?? 'Unknown'}`,
-        fromAddress: lastTx.id ?? 'Unknown',
+        type: "inheritance_available" as const,
+        fromName: `Creator ${will.id?.slice(0, 8) ?? "Unknown"}`,
+        fromAddress: will.owner ?? "Unknown",
         percentage: beneficiary.percentage,
-        estimatedValue: (lastTx.balance ?? 0).toFixed(2),
-        token: 'FLOW' as const,
-        triggeredDate: new Date(lastTx.lastActivity * 1000)
+        estimatedValue: "0.00", // Not available in new interface
+        token: "FLOW" as const,
+        triggeredDate: new Date(will.lastActivity * 1000)
           .toISOString()
-          .split('T')[0],
-        message: `Inheritance from contract ${
-          lastTx.id?.slice(0, 8) ?? 'Unknown'
-        }`,
-        contractAddress: `Contract #${index}`,
-        status: 'claimable' as const,
-        rawData: lastTx,
+          .split("T")[0],
+        message:
+          will.personalMessage ||
+          `Inheritance from will ${will.id?.slice(0, 8) ?? "Unknown"}`,
+        contractAddress: `Will #${will.id}`,
+        status: "claimable" as const,
+        rawData: will,
       };
     })
     .filter((n): n is NonNullable<typeof n> => n !== null);
 
   const handleClaim = async (notificationId: string) => {
     if (!isAuthenticated) {
-      alert('Please connect your wallet first');
+      alert("Please connect your wallet first");
       return;
     }
 
     setClaiming(notificationId);
 
     try {
-      // Find the notification and get the contract data
+      // Find the notification and get the will data
       const notification = notifications.find((n) => n?.id === notificationId);
       if (!notification) {
-        alert('Notification not found');
+        alert("Notification not found");
         return;
       }
 
-      // For now, we'll use distributeFunds which should distribute to the beneficiaries
-      // In a full implementation, we'd need a specific "claim" function
-      const contractId = notification.id.replace('notification_', '');
-      const success = await LastTxService.distributeFunds(contractId);
+      const will = notification.rawData;
+      const success = await claimWill(will.owner, will.id);
 
       if (success) {
-        alert('Inheritance claimed successfully!');
+        alert("Inheritance claimed successfully!");
         refresh(); // Refresh data
       } else {
-        alert('Failed to claim inheritance. Please try again.');
+        alert("Failed to claim inheritance. Please try again.");
       }
     } catch (error) {
-      console.error('Error claiming inheritance:', error);
-      alert('An error occurred while claiming inheritance.');
+      console.error("Error claiming inheritance:", error);
+      alert("An error occurred while claiming inheritance.");
     } finally {
       setClaiming(null);
     }
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      timeZone: 'UTC',
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      timeZone: "UTC",
     });
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'claimable':
+      case "claimable":
         return (
           <Badge
             variant="default"
@@ -121,7 +117,7 @@ export default function ClaimWillPage() {
             Ready to Claim
           </Badge>
         );
-      case 'claimed':
+      case "claimed":
         return (
           <Badge
             variant="secondary"
@@ -137,7 +133,7 @@ export default function ClaimWillPage() {
   };
 
   const availableInheritances = notifications.filter(
-    (n) => n.status === 'claimable',
+    (n) => n.status === "claimable"
   );
   // For now, we don't track claimed inheritances separately
   const claimedInheritances: typeof notifications = [];
@@ -146,7 +142,7 @@ export default function ClaimWillPage() {
     return (
       <AuthRequired>
         <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-          <div className="container mx-auto px-4 py-24">
+          <div className="container mx-auto px-4 pt-12 pb-24">
             <div className="max-w-4xl mx-auto">
               <div className="text-center">
                 <div className="animate-pulse">
@@ -164,7 +160,7 @@ export default function ClaimWillPage() {
   return (
     <AuthRequired>
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-        <div className="container mx-auto px-4 py-24">
+        <div className="container mx-auto px-4 pt-12 pb-24">
           <div className="max-w-4xl mx-auto">
             {/* Header */}
             <div className="text-center mb-12">
@@ -221,9 +217,9 @@ export default function ClaimWillPage() {
                             (sum, n) =>
                               sum +
                               parseFloat(
-                                (n.estimatedValue || '0').replace(/,/g, ''),
+                                (n.estimatedValue || "0").replace(/,/g, "")
                               ),
-                            0,
+                            0
                           )
                           .toLocaleString()}
                       </p>
@@ -260,8 +256,8 @@ export default function ClaimWillPage() {
                           {getStatusBadge(notification.status)}
                         </div>
                         <CardDescription>
-                          Contract triggered on{' '}
-                          {formatDate(notification.triggeredDate || '')}
+                          Contract triggered on{" "}
+                          {formatDate(notification.triggeredDate || "")}
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
@@ -322,8 +318,8 @@ export default function ClaimWillPage() {
                               >
                                 <Gift className="h-4 w-4 mr-2" />
                                 {claiming === notification.id
-                                  ? 'Claiming...'
-                                  : 'Claim Inheritance'}
+                                  ? "Claiming..."
+                                  : "Claim Inheritance"}
                               </Button>
                               {/* <Button variant="outline" size="sm">
                                 <ExternalLink className="h-4 w-4 mr-2" />

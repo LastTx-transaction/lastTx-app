@@ -1,271 +1,392 @@
 import FungibleToken from 0xee82856bf20e2aa6
 import FlowToken from 0x0ae53cb6e3f42a79
 
+/// NonCustodial inheritance contract with percentage-based distribution
 access(all) contract LastTx {
     
-    // Events
-    access(all) event LastTxCreated(owner: Address, id: UInt64)
-    access(all) event ActivityPulse(owner: Address, id: UInt64, timestamp: UFix64)
-    access(all) event FundsDistributed(id: UInt64, totalAmount: UFix64)
-    access(all) event LastTxActivated(id: UInt64, owner: Address)
+    /// Events
+    access(all) event LastTxCreated(owner: Address, beneficiary: Address, percentage: UFix64, lastTxId: UInt64, personalMessage: String?)
+    access(all) event LastTxClaimed(owner: Address, beneficiary: Address, amount: UFix64, lastTxId: UInt64)
+    access(all) event ActivityPulse(owner: Address, lastTxId: UInt64, timestamp: UFix64)
+    access(all) event LastTxUpdated(owner: Address, lastTxId: UInt64)
+    access(all) event LastTxDeleted(owner: Address, lastTxId: UInt64)
     
-    // Storage paths
+    /// Storage and public paths
     access(all) let LastTxStoragePath: StoragePath
     access(all) let LastTxPublicPath: PublicPath
+    access(all) let UserProfileStoragePath: StoragePath
+    access(all) let UserProfilePublicPath: PublicPath
     
-    // Total number of LastTx created
-    access(all) var totalLastTxCreated: UInt64
+    /// Global counter for LastTx IDs
+    access(all) var nextLastTxId: UInt64
     
-    // Beneficiary structure
+    /// User profile for storing owner information
+    access(all) struct UserProfile {
+        access(all) let owner: Address
+        access(all) var email: String?
+        access(all) var name: String?
+        access(all) let createdAt: UFix64
+        access(all) var updatedAt: UFix64
+        
+        init(owner: Address, email: String?, name: String?) {
+            self.owner = owner
+            self.email = email
+            self.name = name
+            self.createdAt = getCurrentBlock().timestamp
+            self.updatedAt = getCurrentBlock().timestamp
+        }
+        
+        access(all) fun updateProfile(email: String?, name: String?) {
+            self.email = email
+            self.name = name
+            self.updatedAt = getCurrentBlock().timestamp
+        }
+    }
+    
+    /// Beneficiary information struct
     access(all) struct Beneficiary {
         access(all) let address: Address
         access(all) let percentage: UFix64
         access(all) let name: String?
+        access(all) let email: String?
         
-        init(address: Address, percentage: UFix64, name: String?) {
+        init(address: Address, percentage: UFix64, name: String?, email: String?) {
             self.address = address
             self.percentage = percentage
             self.name = name
+            self.email = email
         }
     }
     
-    // LastTx resource
+    /// LastTx instance with vault capability for inheritance distribution
     access(all) resource LastTxInstance {
         access(all) let id: UInt64
         access(all) let ownerAddress: Address
-        access(all) var lastActivity: UFix64
-        access(all) var inactivityDuration: UFix64
         access(all) var beneficiaries: [Beneficiary]
-        access(all) let vault: @FlowToken.Vault
-        access(all) var isActive: Bool
-        access(all) let createdAt: UFix64
         access(all) var personalMessage: String?
+        access(all) var inactivityDuration: UFix64
+        access(all) let createdAt: UFix64
+        access(all) var lastActivity: UFix64
+        access(all) let vaultCapability: Capability<auth(FungibleToken.Withdraw) &FlowToken.Vault>
+        access(all) var isClaimed: Bool
+        access(all) var isActive: Bool
         
-        init(owner: Address, inactivityDuration: UFix64, beneficiaries: [Beneficiary], personalMessage: String?) {
-            self.id = self.uuid
-            self.ownerAddress = owner
-            self.lastActivity = getCurrentBlock().timestamp
-            self.inactivityDuration = inactivityDuration
-            self.beneficiaries = beneficiaries
-            self.vault <- FlowToken.createEmptyVault(vaultType: Type<@FlowToken.Vault>()) as! @FlowToken.Vault
-            self.isActive = true
-            self.createdAt = getCurrentBlock().timestamp
-            self.personalMessage = personalMessage
+        init(
+            owner: Address,
+            beneficiaries: [Beneficiary], 
+            personalMessage: String?,
+            inactivityDuration: UFix64,
+            vaultCapability: Capability<auth(FungibleToken.Withdraw) &FlowToken.Vault>
+        ) {
+            self.id = LastTx.nextLastTxId
+            LastTx.nextLastTxId = LastTx.nextLastTxId + 1
             
-            LastTx.totalLastTxCreated = LastTx.totalLastTxCreated + 1
-            emit LastTxCreated(owner: owner, id: self.id)
+            self.ownerAddress = owner
+            self.beneficiaries = beneficiaries
+            self.personalMessage = personalMessage
+            self.inactivityDuration = inactivityDuration
+            self.createdAt = getCurrentBlock().timestamp
+            self.lastActivity = getCurrentBlock().timestamp
+            self.vaultCapability = vaultCapability
+            self.isClaimed = false
+            self.isActive = true
+            
+            // Emit event for first beneficiary (for simplicity)
+            if beneficiaries.length > 0 {
+                emit LastTxCreated(
+                    owner: owner, 
+                    beneficiary: beneficiaries[0].address, 
+                    percentage: beneficiaries[0].percentage, 
+                    lastTxId: self.id,
+                    personalMessage: personalMessage
+                )
+            }
         }
         
+        /// Reset activity timer to prevent expiration
         access(all) fun sendActivityPulse() {
             self.lastActivity = getCurrentBlock().timestamp
-            emit ActivityPulse(owner: self.ownerAddress, id: self.id, timestamp: self.lastActivity)
+            emit ActivityPulse(owner: self.ownerAddress, lastTxId: self.id, timestamp: self.lastActivity)
         }
         
-        access(all) fun updateSettings(inactivityDuration: UFix64, beneficiaries: [Beneficiary], personalMessage: String?) {
-            self.inactivityDuration = inactivityDuration
-            self.beneficiaries = beneficiaries
-            self.personalMessage = personalMessage
-            // Reset activity timer when settings are updated
-            self.lastActivity = getCurrentBlock().timestamp
-        }
-        
-        access(all) fun deposit(from: @{FungibleToken.Vault}) {
-            self.vault.deposit(from: <-from)
-        }
-        
-        access(all) fun isExpired(): Bool {
-            if !self.isActive {
-                return true
-            }
-            let currentTime = getCurrentBlock().timestamp
-            return (currentTime - self.lastActivity) >= self.inactivityDuration
-        }
-        
-        access(all) fun getTimeRemaining(): UFix64 {
-            if !self.isActive {
-                return 0.0
-            }
-            let currentTime = getCurrentBlock().timestamp
-            let elapsed = currentTime - self.lastActivity
-            return elapsed >= self.inactivityDuration ? 0.0 : self.inactivityDuration - elapsed
-        }
-        
-        access(all) fun distributeFunds(): @[{FungibleToken.Vault}] {
-            let totalBalance = self.vault.balance
-            let distributions: @[{FungibleToken.Vault}] <- []
-            
-            for beneficiary in self.beneficiaries {
-                let amount = totalBalance * beneficiary.percentage / 100.0
-                let distribution <- self.vault.withdraw(amount: amount)
-                distributions.append(<-distribution)
-            }
-            
-            self.isActive = false
-            emit FundsDistributed(id: self.id, totalAmount: totalBalance)
-            return <-distributions
-        }
-        
-        access(all) fun getDetails(): {String: AnyStruct} {
-            return {
-                "id": self.id,
-                "owner": self.ownerAddress,
-                "personalMessage": self.personalMessage,
-                "lastActivity": self.lastActivity,
-                "inactivityDuration": self.inactivityDuration,
-                "beneficiaries": self.beneficiaries,
-                "balance": self.vault.balance,
-                "isExpired": self.isExpired(),
-                "isActive": self.isActive,
-                "createdAt": self.createdAt,
-                "timeRemaining": self.getTimeRemaining()
-            }
-        }
-    }
-    
-    // Public interface
-    access(all) resource interface LastTxPublic {
-        access(all) fun getDetails(): {String: AnyStruct}
-        access(all) fun isExpired(): Bool
-        access(all) fun getTimeRemaining(): UFix64
-    }
-    
-    // Collection resource
-    access(all) resource Collection: LastTxPublic {
-        access(all) var lastTxs: @{UInt64: LastTxInstance}
-        
-        init() {
-            self.lastTxs <- {}
-        }
-        
-        access(all) fun createLastTx(
-            owner: Address,
-            inactivityDuration: UFix64,
-            beneficiaries: [Beneficiary],
-            personalMessage: String?
-        ): UInt64 {
-            let lastTx <- create LastTxInstance(
-                owner: owner,
-                inactivityDuration: inactivityDuration,
-                beneficiaries: beneficiaries,
-                personalMessage: personalMessage
-            )
-            let id = lastTx.id
-            self.lastTxs[id] <-! lastTx
-            return id
-        }
-        
-        access(all) fun borrowLastTx(id: UInt64): &LastTxInstance? {
-            return &self.lastTxs[id] as &LastTxInstance?
-        }
-        
+        /// Update LastTx settings (only owner, only if not claimed)
         access(all) fun updateLastTx(
-            id: UInt64,
-            inactivityDuration: UFix64,
-            beneficiaries: [Beneficiary],
+            inactivityDuration: UFix64?,
+            beneficiaries: [Beneficiary]?,
             personalMessage: String?
         ): Bool {
-            if let lastTx = &self.lastTxs[id] as &LastTxInstance? {
-                lastTx.updateSettings(inactivityDuration: inactivityDuration, beneficiaries: beneficiaries, personalMessage: personalMessage)
-                return true
-            }
-            return false
-        }
-        
-        access(all) fun deleteLastTx(id: UInt64): Bool {
-            // Check if LastTx exists
-            if self.lastTxs[id] == nil {
-                return false
+            pre {
+                !self.isClaimed: "Cannot update claimed LastTx"
+                self.isActive: "Cannot update inactive LastTx"
             }
             
-            // Get reference to check if it has funds
-            if let lastTx = &self.lastTxs[id] as &LastTxInstance? {
-                // Prevent deletion if there are funds in the vault
-                if lastTx.vault.balance > 0.0 {
-                    panic("Cannot delete LastTx with funds. Please distribute or withdraw funds first.")
-                }
+            // Update fields if provided
+            if let newDuration = inactivityDuration {
+                self.inactivityDuration = newDuration
             }
             
-            // Remove and destroy the LastTx
-            let oldLastTx <- self.lastTxs.remove(key: id)!
-            destroy oldLastTx
+            if let newBeneficiaries = beneficiaries {
+                self.beneficiaries = newBeneficiaries
+            }
+            
+            if personalMessage != nil {
+                self.personalMessage = personalMessage
+            }
+            
+            // Reset activity timer when updating
+            self.lastActivity = getCurrentBlock().timestamp
+            
+            emit LastTxUpdated(owner: self.ownerAddress, lastTxId: self.id)
             
             return true
         }
         
+        /// Check if LastTx has expired due to inactivity
+        access(all) fun isExpired(): Bool {
+            let currentTime = getCurrentBlock().timestamp
+            return (currentTime - self.lastActivity) >= self.inactivityDuration
+        }
+        
+        /// Calculate remaining time before expiration
+        access(all) fun getTimeRemaining(): UFix64 {
+            let currentTime = getCurrentBlock().timestamp
+            let timePassed = currentTime - self.lastActivity
+            if timePassed >= self.inactivityDuration {
+                return 0.0
+            }
+            return self.inactivityDuration - timePassed
+        }
+        
+        /// Claim inheritance distribution by beneficiary
+        access(all) fun claimInheritance(beneficiaryVault: &FlowToken.Vault): Bool {
+            pre {
+                !self.isClaimed: "Inheritance already claimed"
+                self.vaultCapability.check(): "Owner vault capability is invalid"
+            }
+            
+            // Check if expired
+            if !self.isExpired() {
+                return false
+            }
+            
+            // Find beneficiary that matches vault owner (like SimpleClaim validation)
+            var beneficiaryFound = false
+            var percentage: UFix64 = 0.0
+            
+            for beneficiary in self.beneficiaries {
+                if beneficiary.address == beneficiaryVault.owner!.address {
+                    beneficiaryFound = true
+                    percentage = beneficiary.percentage
+                    break
+                }
+            }
+            
+            if !beneficiaryFound {
+                return false
+            }
+            
+            // Get owner vault untuk mengecek balance dan withdraw
+            let ownerVault = self.vaultCapability.borrow()!
+            
+            // Calculate percentage of owner's current balance
+            let ownerBalance = ownerVault.balance
+            let claimAmount = ownerBalance * (percentage / 100.0)
+            
+            // Withdraw dari vault owner
+            let claimVault <- ownerVault.withdraw(amount: claimAmount)
+            
+            // Deposit ke vault beneficiary
+            beneficiaryVault.deposit(from: <-claimVault)
+            
+            // Mark as claimed
+            self.isClaimed = true
+            self.isActive = false
+            
+            emit LastTxClaimed(owner: self.ownerAddress, beneficiary: beneficiaryVault.owner!.address, amount: claimAmount, lastTxId: self.id)
+            
+            return true
+        }
+        
+        access(all) view fun getDetails(): {String: AnyStruct} {
+            let currentTime = getCurrentBlock().timestamp
+            let timePassed = currentTime - self.lastActivity
+            let isExpiredNow = timePassed >= self.inactivityDuration
+            let timeRemainingNow = isExpiredNow ? 0.0 : self.inactivityDuration - timePassed
+            
+            return {
+                "id": self.id,
+                "owner": self.ownerAddress,
+                "beneficiaries": self.beneficiaries,
+                "personalMessage": self.personalMessage,
+                "inactivityDuration": self.inactivityDuration,
+                "createdAt": self.createdAt,
+                "lastActivity": self.lastActivity,
+                "isClaimed": self.isClaimed,
+                "isActive": self.isActive,
+                "isExpired": isExpiredNow,
+                "timeRemaining": timeRemainingNow,
+                "balance": self.vaultCapability.borrow()?.balance ?? 0.0
+            }
+        }
+    }
+    
+    // Public interface for LastTxInstance
+    access(all) resource interface LastTxInstancePublic {
+        access(all) view fun getDetails(): {String: AnyStruct}
+        access(all) fun isExpired(): Bool
+        access(all) fun getTimeRemaining(): UFix64
+        access(all) fun claimInheritance(beneficiaryVault: &FlowToken.Vault): Bool
+    }
+    
+    /// Collection to store and manage multiple LastTx instances
+    access(all) resource Collection {
+        access(all) var lastTxs: @{UInt64: LastTxInstance}
+        access(all) var userProfile: UserProfile?
+        
+        init() {
+            self.lastTxs <- {}
+            self.userProfile = nil
+        }
+        
+        /// Create or update user profile
+        access(all) fun setUserProfile(email: String?, name: String?) {
+            if self.userProfile == nil {
+                self.userProfile = UserProfile(
+                    owner: self.owner!.address,
+                    email: email,
+                    name: name
+                )
+            } else {
+                self.userProfile!.updateProfile(email: email, name: name)
+            }
+        }
+        
+        /// Get user profile
+        access(all) fun getUserProfile(): UserProfile? {
+            return self.userProfile
+        }
+        
+        /// Create new LastTx inheritance will
+        access(all) fun createLastTx(
+            inactivityDuration: UFix64,
+            beneficiaries: [Beneficiary],
+            personalMessage: String?,
+            vaultCapability: Capability<auth(FungibleToken.Withdraw) &FlowToken.Vault>
+        ): UInt64 {
+            let lastTx <- create LastTxInstance(
+                owner: self.owner!.address,
+                beneficiaries: beneficiaries,
+                personalMessage: personalMessage,
+                inactivityDuration: inactivityDuration,
+                vaultCapability: vaultCapability
+            )
+            
+            let lastTxId = lastTx.id
+            self.lastTxs[lastTxId] <-! lastTx
+            
+            return lastTxId
+        }
+        
+        /// Get reference to specific LastTx instance
+        access(all) fun borrowLastTx(id: UInt64): &LastTxInstance? {
+            return &self.lastTxs[id] as &LastTxInstance?
+        }
+        
+        /// Get all LastTx IDs owned by this account
         access(all) fun getLastTxIDs(): [UInt64] {
             return self.lastTxs.keys
         }
         
-        access(all) fun getDetails(): {String: AnyStruct} {
-            let details: {String: AnyStruct} = {}
-            for id in self.lastTxs.keys {
-                if let lastTx = &self.lastTxs[id] as &LastTxInstance? {
-                    details[id.toString()] = lastTx.getDetails()
-                }
+        /// Send activity pulse to specific LastTx to reset timer
+        access(all) fun sendActivityPulse(id: UInt64) {
+            if let lastTxRef = &self.lastTxs[id] as &LastTxInstance? {
+                lastTxRef.sendActivityPulse()
             }
-            return details
         }
         
-        access(all) fun isExpired(): Bool {
-            for id in self.lastTxs.keys {
-                if let lastTx = &self.lastTxs[id] as &LastTxInstance? {
-                    if lastTx.isExpired() {
-                        return true
-                    }
-                }
+        /// Delete LastTx instance (cannot delete claimed wills)
+        access(all) fun deleteLastTx(id: UInt64): Bool {
+            pre {
+                self.lastTxs.containsKey(id): "LastTx not found"
             }
-            return false
-        }
-        
-        access(all) fun getTimeRemaining(): UFix64 {
-            var shortestTime: UFix64 = 999999999.0
-            var hasActive = false
             
-            for id in self.lastTxs.keys {
-                if let lastTx = &self.lastTxs[id] as &LastTxInstance? {
-                    if lastTx.isActive {
-                        hasActive = true
-                        let remaining = lastTx.getTimeRemaining()
-                        if remaining < shortestTime {
-                            shortestTime = remaining
-                        }
-                    }
+            if let lastTxRef = &self.lastTxs[id] as &LastTxInstance? {
+                if lastTxRef.isClaimed {
+                    return false
                 }
             }
             
-            return hasActive ? shortestTime : 0.0
+            destroy self.lastTxs.remove(key: id)
+            emit LastTxDeleted(owner: self.owner!.address, lastTxId: id)
+            return true
+        }
+        
+        /// Update LastTx settings
+        access(all) fun updateLastTx(
+            id: UInt64,
+            inactivityDuration: UFix64?,
+            beneficiaries: [Beneficiary]?,
+            personalMessage: String?
+        ): Bool {
+            pre {
+                self.lastTxs.containsKey(id): "LastTx not found"
+            }
+            
+            let lastTxRef = &self.lastTxs[id] as &LastTxInstance?
+            if lastTxRef == nil {
+                return false
+            }
+            
+            return lastTxRef!.updateLastTx(
+                inactivityDuration: inactivityDuration,
+                beneficiaries: beneficiaries,
+                personalMessage: personalMessage
+            )
+        }
+        
+        /// Claim inheritance distribution for beneficiary
+        access(all) fun claimInheritance(id: UInt64, beneficiaryVault: &FlowToken.Vault): Bool {
+            pre {
+                self.lastTxs.containsKey(id): "LastTx not found"
+            }
+            
+            let lastTxRef = &self.lastTxs[id] as &LastTxInstance?
+            if lastTxRef == nil {
+                return false
+            }
+            
+            return lastTxRef!.claimInheritance(beneficiaryVault: beneficiaryVault)
         }
     }
     
-    // Create empty Collection
+    /// Public interface for Collection
+    access(all) resource interface CollectionPublic {
+        access(all) fun borrowLastTx(id: UInt64): &LastTxInstance?
+        access(all) fun getLastTxIDs(): [UInt64]
+        access(all) fun claimInheritance(id: UInt64, beneficiaryVault: &FlowToken.Vault): Bool
+    }
+    
+    /// Create empty collection for LastTx instances
     access(all) fun createEmptyCollection(): @Collection {
         return <- create Collection()
     }
     
-    // Create Beneficiary
-    access(all) fun createBeneficiary(address: Address, percentage: UFix64, name: String?): Beneficiary {
-        return Beneficiary(address: address, percentage: percentage, name: name)
+    /// Create beneficiary struct with validation
+    access(all) fun createBeneficiary(address: Address, percentage: UFix64, name: String?, email: String?): Beneficiary {
+        return Beneficiary(address: address, percentage: percentage, name: name, email: email)
     }
     
-    // Get total created
+    /// Get total number of LastTx instances created
     access(all) fun getTotalLastTxCreated(): UInt64 {
-        return self.totalLastTxCreated
+        return self.nextLastTxId
     }
     
     init() {
-        // Set storage paths
+        self.nextLastTxId = 1
+        
         self.LastTxStoragePath = /storage/LastTxCollection
         self.LastTxPublicPath = /public/LastTxCollection
-        
-        // Initialize counter
-        self.totalLastTxCreated = 0
-        
-        // Create and store empty collection
-        let collection <- self.createEmptyCollection()
-        self.account.storage.save(<-collection, to: self.LastTxStoragePath)
-        
-        // Create public capability
-        let cap = self.account.capabilities.storage.issue<&Collection>(self.LastTxStoragePath)
-        self.account.capabilities.publish(cap, at: self.LastTxPublicPath)
+        self.UserProfileStoragePath = /storage/LastTxUserProfile
+        self.UserProfilePublicPath = /public/LastTxUserProfile
     }
 }

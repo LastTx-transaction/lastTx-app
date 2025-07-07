@@ -1,7 +1,6 @@
 // FCL Types
-export interface FCLArgumentFunction {
-  (value: any, type: any): any;
-}
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export type FCLArgumentFunction = (value: any, type: any) => any;
 
 export interface FCLTypes {
   Address: any;

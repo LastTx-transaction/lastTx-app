@@ -1,27 +1,27 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { useLastTx } from '@/lib/hooks/useLastTx';
-import { AuthRequired } from '@/components/auth/AuthButton';
-import { Button } from '@/components/ui/button';
+import { useState, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { useLastTx } from "@/lib/hooks/useLastTx";
+import { AuthRequired } from "@/components/auth/AuthButton";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 import {
   Shield,
   ArrowLeft,
@@ -30,12 +30,13 @@ import {
   CheckCircle,
   AlertCircle,
   Clock,
-} from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+} from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface InheritanceRule {
   beneficiaryAddress: string;
   beneficiaryName: string;
+  beneficiaryEmail: string;
   percentage: number;
   inactivityPeriod: number;
   message: string;
@@ -53,11 +54,12 @@ export default function EditRulePage() {
   const [success, setSuccess] = useState(false);
 
   const [rule, setRule] = useState<InheritanceRule>({
-    beneficiaryAddress: '',
-    beneficiaryName: '',
+    beneficiaryAddress: "",
+    beneficiaryName: "",
+    beneficiaryEmail: "",
     percentage: 100,
     inactivityPeriod: 30,
-    message: '',
+    message: "",
   });
 
   const currentRule = lastTxsById[ruleId];
@@ -66,20 +68,21 @@ export default function EditRulePage() {
     if (currentRule) {
       const beneficiary = currentRule.beneficiaries[0];
       const calculatedPeriod = Math.floor(
-        currentRule.inactivityDuration / (24 * 60 * 60),
+        currentRule.inactivityDuration / (24 * 60 * 60)
       );
 
       setRule({
-        beneficiaryAddress: beneficiary?.address || '',
-        beneficiaryName: beneficiary?.name || '',
-        percentage: beneficiary?.percentage || 100,
+        beneficiaryAddress: beneficiary?.address ?? "",
+        beneficiaryName: beneficiary?.name ?? "",
+        beneficiaryEmail: beneficiary?.email ?? "",
+        percentage: beneficiary?.percentage ?? 100,
         inactivityPeriod: calculatedPeriod,
-        message: currentRule.personalMessage || '', // Load personal message from blockchain
+        message: currentRule.personalMessage ?? "", // Load personal message from blockchain
       });
       setIsLoading(false);
     } else if (ruleId) {
       // Rule not found
-      setError('Rule not found');
+      setError("Rule not found");
       setIsLoading(false);
     }
   }, [currentRule, ruleId]);
@@ -93,18 +96,27 @@ export default function EditRulePage() {
     e.preventDefault();
 
     if (rule.percentage === 0) {
-      setError('Please set a percentage for the inheritance rule.');
+      setError("Please set a percentage for the inheritance rule.");
       return;
     }
 
     if (!rule.beneficiaryAddress || !rule.beneficiaryName) {
-      setError('Please fill in all required fields.');
+      setError("Please fill in all required fields.");
+      return;
+    }
+
+    // Email validation
+    if (
+      rule.beneficiaryEmail &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rule.beneficiaryEmail)
+    ) {
+      setError("Please enter a valid email address.");
       return;
     }
 
     // Basic Flow address validation
-    if (!rule.beneficiaryAddress.startsWith('0x')) {
-      setError('Flow address must start with 0x');
+    if (!rule.beneficiaryAddress.startsWith("0x")) {
+      setError("Flow address must start with 0x");
       return;
     }
 
@@ -121,6 +133,7 @@ export default function EditRulePage() {
           address: rule.beneficiaryAddress,
           percentage: rule.percentage,
           name: rule.beneficiaryName,
+          email: rule.beneficiaryEmail,
         },
       ];
 
@@ -129,21 +142,21 @@ export default function EditRulePage() {
         ruleId,
         inactivityDurationSeconds,
         beneficiaries,
-        rule.message, // Pass personal message to blockchain
+        rule.message // Pass personal message to blockchain
       );
 
       if (success) {
         setSuccess(true);
         setTimeout(() => {
           refresh(); // Refresh the data
-          router.push('/my-wills');
+          router.push("/my-wills");
         }, 1500);
       } else {
-        setError('Failed to update inheritance rule. Please try again.');
+        setError("Failed to update inheritance rule. Please try again.");
       }
     } catch (err) {
-      console.error('Error updating rule:', err);
-      setError('An error occurred while updating the inheritance rule.');
+      console.error("Error updating rule:", err);
+      setError("An error occurred while updating the inheritance rule.");
     } finally {
       setIsSaving(false);
     }
@@ -153,7 +166,7 @@ export default function EditRulePage() {
     return (
       <AuthRequired>
         <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-          <div className="container mx-auto px-4 py-24">
+          <div className="container mx-auto px-4 pt-12 pb-24">
             <div className="max-w-2xl mx-auto">
               <div className="text-center">
                 <div className="animate-pulse">
@@ -172,7 +185,7 @@ export default function EditRulePage() {
     return (
       <AuthRequired>
         <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-          <div className="container mx-auto px-4 py-24">
+          <div className="container mx-auto px-4 pt-12 pb-24">
             <div className="max-w-2xl mx-auto">
               <Card className="border-red-200">
                 <CardContent className="text-center py-12">
@@ -184,7 +197,7 @@ export default function EditRulePage() {
                     The inheritance rule you&apos;re trying to edit was not
                     found.
                   </p>
-                  <Button onClick={() => router.push('/my-wills')}>
+                  <Button onClick={() => router.push("/my-wills")}>
                     <ArrowLeft className="h-4 w-4 mr-2" />
                     Back to My Rules
                   </Button>
@@ -200,13 +213,13 @@ export default function EditRulePage() {
   return (
     <AuthRequired>
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-        <div className="container mx-auto px-4 py-24">
+        <div className="container mx-auto px-4 pt-12 pb-24">
           <div className="max-w-2xl mx-auto">
             {/* Header */}
             <div className="mb-8">
               <Button
                 variant="ghost"
-                onClick={() => router.push('/my-wills')}
+                onClick={() => router.push("/my-wills")}
                 className="mb-4"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
@@ -262,15 +275,35 @@ export default function EditRulePage() {
                         placeholder="John Doe"
                         value={rule.beneficiaryName}
                         onChange={(e) =>
-                          updateRule('beneficiaryName', e.target.value)
+                          updateRule("beneficiaryName", e.target.value)
                         }
                         disabled={isSaving}
                         required
                       />
                     </div>
 
-                    {/* Beneficiary Address */}
+                    {/* Beneficiary Email */}
                     <div className="space-y-2">
+                      <Label htmlFor="beneficiary-email">
+                        Beneficiary Email (Optional)
+                      </Label>
+                      <Input
+                        id="beneficiary-email"
+                        type="email"
+                        placeholder="john@example.com"
+                        value={rule.beneficiaryEmail}
+                        onChange={(e) =>
+                          updateRule("beneficiaryEmail", e.target.value)
+                        }
+                        disabled={isSaving}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Email address to notify when inheritance is assigned
+                      </p>
+                    </div>
+
+                    {/* Beneficiary Address */}
+                    <div className="space-y-2 md:col-span-2">
                       <Label htmlFor="beneficiary-address">
                         Flow Wallet Address
                       </Label>
@@ -279,7 +312,7 @@ export default function EditRulePage() {
                         placeholder="0x... (Flow wallet address)"
                         value={rule.beneficiaryAddress}
                         onChange={(e) =>
-                          updateRule('beneficiaryAddress', e.target.value)
+                          updateRule("beneficiaryAddress", e.target.value)
                         }
                         disabled={isSaving}
                         required
@@ -295,11 +328,11 @@ export default function EditRulePage() {
                         min="1"
                         max="100"
                         placeholder="100"
-                        value={rule.percentage || ''}
+                        value={rule.percentage || ""}
                         onChange={(e) =>
                           updateRule(
-                            'percentage',
-                            parseInt(e.target.value) || 0,
+                            "percentage",
+                            parseInt(e.target.value) || 0
                           )
                         }
                         disabled={isSaving}
@@ -318,7 +351,7 @@ export default function EditRulePage() {
                       <Select
                         value={rule.inactivityPeriod.toString()}
                         onValueChange={(value) =>
-                          updateRule('inactivityPeriod', parseInt(value))
+                          updateRule("inactivityPeriod", parseInt(value))
                         }
                         disabled={isSaving}
                       >
@@ -357,7 +390,7 @@ export default function EditRulePage() {
                         id="personal-message"
                         placeholder="Leave a personal message for the beneficiary..."
                         value={rule.message}
-                        onChange={(e) => updateRule('message', e.target.value)}
+                        onChange={(e) => updateRule("message", e.target.value)}
                         rows={3}
                         disabled={isSaving}
                       />
@@ -373,7 +406,7 @@ export default function EditRulePage() {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => router.push('/my-wills')}
+                      onClick={() => router.push("/my-wills")}
                       disabled={isSaving}
                     >
                       Cancel

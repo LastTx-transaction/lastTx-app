@@ -6,6 +6,7 @@ import { useLastTx } from "@/lib/hooks/useLastTx";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { AuthRequired } from "@/components/auth/AuthButton";
 import { LastTxService } from "@/lib/lasttx-service";
+import { UserProfileService } from "@/lib/services/user-profile.service";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -19,7 +20,6 @@ import {
   ConfirmDialog,
   NotificationDialog,
 } from "@/components/ui/confirm-dialog";
-import { ContractInfoDialog } from "@/components/ui/contract-info-dialog";
 import {
   Shield,
   Users,
@@ -65,10 +65,70 @@ export default function MyWillsPage() {
     description: "",
   });
   const [dialogLoading, setDialogLoading] = useState(false);
+  const [, setUserHasEmail] = useState<boolean | null>(null);
+  const [expiryWarnings, setExpiryWarnings] = useState<
+    Record<
+      string,
+      {
+        isExpired: boolean;
+        isExpiringSoon: boolean;
+        formattedTimeRemaining: string;
+      }
+    >
+  >({});
 
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // Check user email setup and expiry status
+  useEffect(() => {
+    const checkUserEmailAndExpiry = async () => {
+      if (!user?.addr) return;
+
+      try {
+        // Check if user has email configured
+        const hasEmail = await UserProfileService.hasEmail(user.addr);
+        setUserHasEmail(hasEmail);
+
+        // Check expiry status for all wills
+        const warnings: {
+          [key: string]: {
+            isExpired: boolean;
+            isExpiringSoon: boolean;
+            formattedTimeRemaining: string;
+          };
+        } = {};
+        Object.entries(lastTxs).forEach(([id, will]) => {
+          if (will && typeof will === "object") {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const willData = will as any;
+            const lastActivity = parseFloat(willData.lastActivity ?? "0");
+            const inactivityDuration = parseFloat(
+              willData.inactivityDuration ?? "0"
+            );
+
+            const status = LastTxService.getExpiryStatus(
+              lastActivity,
+              inactivityDuration
+            );
+            warnings[id] = {
+              isExpired: status.isExpired,
+              isExpiringSoon: status.isExpiringSoon,
+              formattedTimeRemaining: status.formattedTimeRemaining,
+            };
+          }
+        });
+        setExpiryWarnings(warnings);
+      } catch (error) {
+        console.error("Error checking user email and expiry:", error);
+      }
+    };
+
+    if (isClient && user?.addr && Object.keys(lastTxs).length > 0) {
+      checkUserEmailAndExpiry();
+    }
+  }, [user?.addr, lastTxs, isClient]);
 
   // Convert lastTxs array to display format
   const inheritanceRules = lastTxs.map((lastTx) => {
@@ -82,7 +142,7 @@ export default function MyWillsPage() {
     );
 
     let status = "active";
-    if (!lastTx.isActive) status = "inactive";
+    if (lastTx.isClaimed) status = "inactive";
     else if (lastTx.isExpired) status = "triggered";
     else if (daysUntilTrigger <= 30) status = "warning";
 
@@ -245,47 +305,12 @@ export default function MyWillsPage() {
       .reduce((total, rule) => total + rule.percentage, 0);
   };
 
-  // Contract view dialog state
-  const [contractDialog, setContractDialog] = useState<{
-    open: boolean;
-    contractData: Record<string, unknown> | null;
-  }>({
-    open: false,
-    contractData: null,
-  });
-
-  const viewContract = (lastTxId: string) => {
-    if (!user?.addr) return;
-
-    // Determine the correct Flowscan URL based on network
-    // For emulator/testnet, we'll show internal dialog
-    // For mainnet, we'll open Flowscan
-    const isMainnet = user.addr.startsWith("0x") && user.addr.length === 18;
-
-    if (isMainnet) {
-      // Open Flowscan for mainnet
-      const flowscanUrl = `https://www.flowscan.io/account/${user.addr}`;
-      window.open(flowscanUrl, "_blank");
-    } else {
-      // Show internal dialog for emulator/testnet
-      const contractData = inheritanceRules.find(
-        (rule) => rule.id === lastTxId
-      );
-      if (contractData) {
-        setContractDialog({
-          open: true,
-          contractData: contractData as Record<string, unknown>,
-        });
-      }
-    }
-  };
-
   // Show loading state
   if (loading || !isClient) {
     return (
       <AuthRequired>
         <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-          <div className="container mx-auto px-4 py-24">
+          <div className="container mx-auto px-4 pt-24 pb-24">
             <div className="max-w-4xl mx-auto">
               <div className="text-center">
                 <div className="animate-pulse">
@@ -303,16 +328,21 @@ export default function MyWillsPage() {
   return (
     <AuthRequired>
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-        <div className="container mx-auto px-4 py-24">
+        <div className="container mx-auto px-4 pt-12 pb-24">
           <div className="max-w-4xl mx-auto">
             {/* Header */}
             <div className="text-center mb-12">
-              <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-                My Inheritance Rules
-              </h1>
-              <p className="text-xl text-muted-foreground">
-                Monitor and manage your inactivity-based inheritance contracts
-              </p>
+              <div className="flex justify-between items-start mb-6">
+                <div className="flex-1">
+                  <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                    My Inheritance Rules
+                  </h1>
+                  <p className="text-xl text-muted-foreground">
+                    Monitor and manage your inactivity-based inheritance
+                    contracts
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Stats Cards */}
@@ -388,7 +418,7 @@ export default function MyWillsPage() {
             </div>
 
             {/* Quick Actions */}
-            <Card className="mb-8 ">
+            <Card className="border-primary/10 mb-8">
               <CardContent className="py-1">
                 <div className="flex items-center justify-between">
                   <div>
@@ -432,9 +462,6 @@ export default function MyWillsPage() {
                       Start securing your crypto inheritance by creating your
                       first inheritance rule
                     </p>
-                    <Button asChild>
-                      <a href="/create-will">Create Your First Rule</a>
-                    </Button>
                   </CardContent>
                 </Card>
               ) : (
@@ -442,7 +469,14 @@ export default function MyWillsPage() {
                   const getCardClassName = () => {
                     let className =
                       "border-primary/10 hover:shadow-lg transition-shadow";
-                    if (rule.status === "warning") {
+
+                    // Check expiry status
+                    const expiryStatus = expiryWarnings[rule.id];
+                    if (expiryStatus?.isExpired) {
+                      className += " border-red-300 bg-red-50/30";
+                    } else if (expiryStatus?.isExpiringSoon) {
+                      className += " border-orange-300 bg-orange-50/30";
+                    } else if (rule.status === "warning") {
                       className += " border-amber-300 bg-amber-50/30";
                     } else if (rule.status === "triggered") {
                       className += " border-red-300 bg-red-50/30";
@@ -460,7 +494,24 @@ export default function MyWillsPage() {
                               {rule.beneficiaryName} - {rule.percentage}%
                             </span>
                           </CardTitle>
-                          {getStatusBadge(rule.status, rule.daysUntilTrigger)}
+                          <div className="flex items-center space-x-2">
+                            {/* Expiry Warning Badge */}
+                            {expiryWarnings[rule.id]?.isExpired && (
+                              <Badge variant="destructive" className="text-xs">
+                                🚨 EXPIRED
+                              </Badge>
+                            )}
+                            {expiryWarnings[rule.id]?.isExpiringSoon &&
+                              !expiryWarnings[rule.id]?.isExpired && (
+                                <Badge
+                                  variant="secondary"
+                                  className="text-xs bg-orange-100 text-orange-800"
+                                >
+                                  ⏰ EXPIRING SOON
+                                </Badge>
+                              )}
+                            {getStatusBadge(rule.status, rule.daysUntilTrigger)}
+                          </div>
                         </div>
                         <CardDescription>
                           Contract: {rule.contractAddress}
@@ -539,20 +590,6 @@ export default function MyWillsPage() {
 
                         <div className="mt-6 flex justify-between items-center">
                           <div className="flex space-x-2">
-                            {/* <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => viewContract(rule.id)}
-                              title={
-                                user?.addr?.startsWith('0x') &&
-                                user.addr.length === 18
-                                  ? 'View on Flowscan (Blockchain Explorer)'
-                                  : 'View Contract Details'
-                              }
-                            >
-                              <ExternalLink className="h-4 w-4 mr-2" />
-                              View Contract
-                            </Button> */}
                             {rule.status !== "triggered" && (
                               <>
                                 <Button
@@ -643,26 +680,6 @@ export default function MyWillsPage() {
         title={notification.title}
         description={notification.description}
         type={notification.type}
-      />
-
-      {/* Contract Info Dialog */}
-      <ContractInfoDialog
-        open={contractDialog.open}
-        onOpenChange={(open) => setContractDialog({ ...contractDialog, open })}
-        contractData={
-          contractDialog.contractData as {
-            id: string;
-            beneficiaryName: string;
-            beneficiaryAddress: string;
-            percentage: number;
-            inactivityPeriod: number;
-            lastActivity: string;
-            status: string;
-            daysUntilTrigger: number;
-            contractAddress: string;
-          } | null
-        }
-        userAddress={user?.addr}
       />
     </AuthRequired>
   );
