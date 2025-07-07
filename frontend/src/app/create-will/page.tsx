@@ -571,9 +571,6 @@ export default function CreateWillPage() {
                           <SelectValue placeholder="Select period" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="0.000694">
-                            1 minute (Testing)
-                          </SelectItem>
                           <SelectItem value="0.00347">
                             5 minutes (Testing)
                           </SelectItem>
