@@ -65,24 +65,29 @@ import LastTx from 0xLastTx
 import FungibleToken from 0xFungibleToken
 import FlowToken from 0xFlowToken
 
-    
-    let beneficiaryVault: &FlowToken.Vault
+transaction(ownerAddress: Address, lastTxId: UInt64) {
+    let beneficiaryVaultCapability: Capability<&FlowToken.Vault>
     let lastTxCollection: &LastTx.Collection
     
-    prepare(beneficiarySigner: auth(Storage) &Account) {
-        /// Get beneficiary's vault to receive inheritance
-        self.beneficiaryVault = beneficiarySigner.storage.borrow<&FlowToken.Vault>(from: /storage/flowTokenVault)!
+    prepare(beneficiarySigner: auth(Storage, Capabilities) &Account) {
+        /// Issue capability for beneficiary's vault to ensure owner reference
+        self.beneficiaryVaultCapability = beneficiarySigner.capabilities.storage.issue<&FlowToken.Vault>(/storage/flowTokenVault)
         
         /// Get reference to owner's LastTx collection
         let ownerAccount = getAccount(ownerAddress)
-        self.lastTxCollection = ownerAccount.capabilities.borrow<&LastTx.Collection>(LastTx.LastTxPublicPath)!
+        self.lastTxCollection = ownerAccount.capabilities.get<&LastTx.Collection>(LastTx.LastTxPublicPath)
+            .borrow() ?? panic("Could not borrow LastTx Collection from owner account")
     }
     
     execute {
+        /// Borrow vault from capability to ensure owner reference is available
+        let beneficiaryVault = self.beneficiaryVaultCapability.borrow()
+            ?? panic("Could not borrow FlowToken Vault from capability")
+        
         /// Execute inheritance claim
         let success = self.lastTxCollection.claimInheritance(
             id: lastTxId,
-            beneficiaryVault: self.beneficiaryVault
+            beneficiaryVault: beneficiaryVault
         )
         
         if success {
