@@ -1,10 +1,10 @@
-"use client";
-import { useState } from "react";
-import Link from "next/link";
-import { Menu, X, Wallet, Settings, Coins, Eye, EyeOff } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { useCurrentFlowUser } from "@onflow/kit";
-import { useAuth } from "@/lib/hooks/useAuth";
+'use client';
+import { useState } from 'react';
+import Link from 'next/link';
+import { Menu, X, Wallet, Settings, Coins, Eye, EyeOff } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useCurrentFlowUser } from '@onflow/kit';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -12,8 +12,8 @@ export default function Navbar() {
   const { user: authUser, balanceLoading, toggleBalanceVisibility } = useAuth();
 
   const getBalanceDisplay = () => {
-    if (!authUser.balanceVisible) return "****";
-    return balanceLoading ? "..." : `${authUser.balance}`;
+    if (!authUser.balanceVisible) return '****';
+    return balanceLoading ? '...' : `${authUser.balance}`;
   };
 
   return (
@@ -56,12 +56,12 @@ export default function Navbar() {
                   >
                     My Wills
                   </Link>
-                  <Link
+                  {/* <Link
                     href="/claim-will"
                     className="border-transparent text-muted-foreground hover:border-primary hover:text-foreground inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors"
                   >
                     Notifications
-                  </Link>
+                  </Link> */}
                   {/* <Link
                     href="/settings"
                     className="border-transparent text-muted-foreground hover:border-primary hover:text-foreground inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors"
@@ -104,7 +104,7 @@ export default function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => (window.location.href = "/settings")}
+                  onClick={() => (window.location.href = '/settings')}
                   className="p-2"
                 >
                   <Settings className="h-4 w-4" />
