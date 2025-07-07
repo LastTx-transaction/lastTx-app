@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Github, ExternalLink } from "lucide-react";
+import { Github, ExternalLink, Mail } from "lucide-react";
 
 export default function Footer() {
   return (
@@ -63,24 +63,35 @@ export default function Footer() {
             <ul className="space-y-3">
               <li>
                 <a
-                  href="https://github.com/your-repo/last-tx"
+                  href="https://github.com/LastTx-transaction/lastTx-app"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center"
                 >
-                  Repository <Github className="h-4 w-4 mx-2" />
-                  <ExternalLink className="h-3 w-3 ml-1" />
+                  <Github className="size-4 mr-2" />
+                  Repository
                 </a>
               </li>
               <li>
                 <a
-                  href="https://onflow.org"
+                  href="https://flow.com"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center"
                 >
+                  <ExternalLink className="size-4 mr-2" />
                   Built on Flow
-                  <ExternalLink className="h-3 w-3 ml-1" />
+                </a>
+              </li>
+              <li>
+                <a
+                  href="mailto:m.azzam.azis@gmail.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center"
+                >
+                  <Mail className="size-4 mr-2" />
+                  Contact Us
                 </a>
               </li>
             </ul>
@@ -105,7 +116,7 @@ export default function Footer() {
                 </Link>{" "}
                 &{" "}
                 <Link
-                  href="https://github.com/developer2"
+                  href="https://github.com/daffarafi"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-green-500 hover:text-green-600 transition-colors hover:underline font-bold px-2"
