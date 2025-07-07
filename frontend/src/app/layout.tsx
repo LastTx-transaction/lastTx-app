@@ -1,7 +1,6 @@
 'use client';
 
 import { FlowProvider } from '@onflow/kit';
-import flowJson from '../../flow.json';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 
@@ -21,7 +20,6 @@ export default function RootLayout({
             flowNetwork: 'testnet',
             discoveryWallet: 'https://fcl-discovery.onflow.org/testnet/authn',
           }}
-          flowJson={flowJson}
         >
           <Navbar />
           <main className="min-h-[70vh]">{children}</main>
